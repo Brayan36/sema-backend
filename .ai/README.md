@@ -12,4 +12,5 @@ Carpeta con el contexto que necesita una persona o un agente de IA para trabajar
 - Los nombres de archivo van en inglés. El contenido va en español.
 - El código es la fuente de verdad: si un `.md` y el código difieren, gana el código y el `.md` se corrige.
 - Al cerrar cada sesión se actualizan la sección de estado y la bitácora de `CONTEXT.md`.
-- Estos documentos se basan en un proyecto de entrenamiento previo (FastAPI + SQLite). Se adaptaron al alcance real de SEMA. Todo lo que aparece como *(por definir)* está abierto y no debe darse por decidido.
+- El código base viene de un proyecto de entrenamiento previo (FastAPI + SQLite) y se adaptó al alcance real de SEMA. Todo lo que aparece como *(por definir)* está abierto y no debe darse por decidido.
+- Cómo instalar y ejecutar: [../backend/README.md](../backend/README.md).

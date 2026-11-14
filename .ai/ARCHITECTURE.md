@@ -2,7 +2,19 @@
 
 > Referencia técnica. Plan por fases: [PLAN.md](PLAN.md). Protocolo y estado: [CONTEXT.md](CONTEXT.md).
 
-**Estado:** todo lo descrito es **diseño**: todavía no hay código. Cuando exista, el código gana sobre este documento y el documento se corrige. Los fragmentos son guía, no código final.
+**Estado (2026-11-14):**
+
+| Pieza | Estado |
+|---|---|
+| `core/` (config, database, base_repository, base_schema, errores, logging, base_seeder) | ✅ Implementado |
+| `core/security.py`: hash de contraseñas | ✅ Implementado |
+| `core/security.py`: JWT, y `features/auth/` | 📝 Diseño (fase 4, la implementa un compañero) |
+| `manage.py` y seeders | ✅ Implementado |
+| Feature `usuarios` | ✅ Implementada (todavía sin protección de token) |
+| Entidades de datos e históricos | 📝 Por definir (fase 5) |
+| `features/_template/` | ✅ Molde de feature con CRUD completo y probado (no registrado en `main.py`) |
+
+Lo implementado vive en `backend/`: **el código gana sobre este documento** y el documento se corrige. Las secciones de diseño (autenticación) son guía y pueden ajustarse respetando las reglas.
 
 ## 1. Arquitectura: modular por feature, capas por dentro, core compartido
 
@@ -13,7 +25,7 @@
 ```
 Frontend (React/PWA, offline) ──HTTP──► main.py (CORS, handlers, routers)
                                           │
-                  features/auth      features/usuarios      features/<historico>
+                  features/auth      features/usuarios      features/<entidad>
                   router→service     router→service         router→service
                                           │
                                        repository
@@ -37,10 +49,10 @@ backend/
 │   │   ├── base_seeder.py · security.py · exceptions.py
 │   │   └── error_handlers.py · log_config.py
 │   ├── features/
-│   │   ├── _template/         # esqueleto (fase 6)
-│   │   ├── auth/              # login y protección de rutas (fase 4)
-│   │   ├── usuarios/          # repository, schemas, service, router (fase 3)
-│   │   └── <historicos>/      # por definir (fase 5)
+│   │   ├── _template/         # molde para features nuevas (README, repository, schemas, service, router, migración de ejemplo)
+│   │   ├── auth/              # login y protección de rutas (fase 4, vacía por ahora)
+│   │   ├── usuarios/          # repository, schemas, service, router (molde de las features)
+│   │   └── <entidad>/         # una carpeta por entidad de datos (fase 5, por definir)
 │   └── seeders/
 ├── migrations/                # scripts SQL numerados
 ├── tests/                     # misma estructura que app/
@@ -78,8 +90,10 @@ main.py:                único que conoce a todos
 `pydantic-settings` lee `.env`. Nadie más lee `os.environ`. Variables: `environment`, `timezone`, `db_path`, `cors_origins` (lista JSON), `jwt_secret`, `jwt_algorithm`, `jwt_expire_minutes`, `first_user_email`, `first_user_password`. `TIMEZONE` se valida al arrancar.
 
 ### 5.2 `database.py`
-- Una conexión por petición (`get_db`), con commit o rollback juntos al final. Los repositorios **nunca** hacen commit.
-- `row_factory = sqlite3.Row`, `PRAGMA foreign_keys = ON` y `check_same_thread=False` (seguro porque la conexión no se comparte entre peticiones).
+- Una conexión por petición, con commit o rollback juntos al final. Los repositorios **nunca** hacen commit.
+- **En un router se pide con `connection: DbConnection`**, que es `Depends(get_db, scope="function")`. El `scope` hace que el commit ocurra **antes** de enviar la respuesta. Con `Depends(get_db)` a secas, FastAPI lo ejecuta después y un `GET` inmediato del cliente podría no ver lo que acaba de guardar (hay un test que lo verifica).
+- `connect()` configura `row_factory = sqlite3.Row`, `PRAGMA foreign_keys = ON`, `journal_mode = WAL`, `busy_timeout = 5000` y `check_same_thread=False` (seguro porque la conexión no se comparte entre peticiones).
+- **Ids:** toda tabla usa `id INTEGER PRIMARY KEY AUTOINCREMENT`: entero de 64 bits y positivo, el *unsigned big integer* práctico de SQLite.
 - **Migraciones:** archivos `migrations/001_*.sql`. `run_migrations()` crea `schema_migrations`, corre los pendientes en orden y cada uno en una transacción con su registro. Una migración ya integrada **nunca se edita**; se crea otra. Sin rollback: en desarrollo se usa `migrate:fresh`.
 - Fechas: se guardan en UTC ISO 8601. `local_now()` y `to_local()` solo para lógica que depende de la hora local.
 
@@ -87,7 +101,11 @@ main.py:                único que conoce a todos
 `AuditSchema` (`id`, `created_at`, `updated_at`; `deleted_at` no se expone), `PageSchema[T]` (`items`, `total`, `limit`, `offset`) y `SortDirection = Literal["asc", "desc"]`.
 
 ### 5.4 `base_repository.py`
-Cada repositorio declara `table`, `columns` (escribibles y filtrables) y `sortable`. `BaseRepository` ofrece `get_by_id`, `list_all`, `count`, `create`, `update`, `soft_delete` y `exists_by(..., exclude_id, include_deleted)`; valida su propia declaración; agrega timestamps; y todas las lecturas filtran `deleted_at IS NULL`. Devuelve `dict`; el service lo convierte a schema.
+Cada repositorio declara `table`, `columns` (escribibles y filtrables) y `sortable`. `BaseRepository` ofrece `get_by_id`, `get_by(column, value, include_deleted=False)`, `list_all`, `count`, `create`, `update`, `soft_delete` y `exists_by(..., exclude_id, include_deleted)`; valida su propia declaración; agrega timestamps; y todas las lecturas filtran `deleted_at IS NULL`. Devuelve `dict`; el service lo convierte a schema.
+
+`get_by` devuelve el primer registro activo (menor `id`) cuya columna vale el valor pedido, o `None`. Ejemplo: `repository.get_by("email", "ana@sema.example")`. La columna debe estar en `columns`; si no, `InvalidFieldError` (400).
+
+**Limitación conocida:** `list_all` y `count` no filtran. Si una entidad necesita listar por usuario o por rango de fechas, se amplían en el core (con lista blanca y tests de inyección), no con SQL en el service.
 
 Los **valores** siempre van con `?`. Los **identificadores** se interpolan solo después de pasar la lista blanca; por eso este es el único archivo que puede usar `# noqa: S608`.
 
@@ -123,6 +141,8 @@ Comandos (solo `argparse`): `migrate`, `migrate:status`, `db:seed [--class X]`, 
 Valores con `?`; identificadores solo de la lista blanca; dirección de orden validada con `Literal`; paginación acotada (`limit` 1 a 100); todo dato pasa primero por un schema; `ruff` con reglas `S`; tests de inyección. Detalle en [PLAN.md](PLAN.md), sección 6.
 
 ## 7. Autenticación y CORS
+
+> La autenticación es la fase 4 y la implementa un compañero. Lo de abajo es el diseño acordado.
 
 **Flujo:** `POST /auth/login` (formulario: `username` = email, `password`) → `{access_token, token_type: "bearer"}`. El frontend envía `Authorization: Bearer <token>`. `get_current_user` extrae el token, lo decodifica y consulta al usuario en la BD (existe y no está eliminado), o responde 401. Un usuario eliminado pierde el acceso de inmediato.
 
@@ -169,33 +189,34 @@ router = APIRouter(prefix="/usuarios", tags=["usuarios"], dependencies=[Depends(
 ## 9. Cómo agregar una feature
 
 1. **Rama** nueva desde la rama base de trabajo.
-2. **Copiar** `features/_template/` y borrar lo que no se use.
+2. **Copiar** `features/_template/` y reemplazar `ejemplo`/`Ejemplo` por el nombre de la entidad. Los pasos exactos están en `features/_template/README.md` (se probaron creando una feature de punta a punta). Borrar lo que no se use.
 3. **Migración** `migrations/00X_create_<tabla>.sql` con `id`, `created_at`, `updated_at`, `deleted_at`. Aplicar con `manage.py migrate`.
 4. **Schemas** (`Create`, `Update`, `Out`). Compartirlos con el frontend antes de seguir: son el contrato.
 5. **Repository** extendiendo `BaseRepository` (`table`, `columns`, `sortable`).
 6. **Service** con la lógica; lanza excepciones del core, nunca `HTTPException`.
-7. **Router** con `dependencies=[Depends(get_current_user)]`, endpoints de 1 o 2 líneas y listado paginado.
+7. **Router** con endpoints de 1 o 2 líneas y listado paginado. La conexión se pide con `connection: DbConnection` (nunca `Depends(get_db)`). Cuando exista la autenticación, agregar `dependencies=[Depends(get_current_user)]`.
 8. **Registrar** el router en `main.py`.
 9. **Tests** en `tests/features/<feature>/`: service sin HTTP y endpoints con `TestClient`.
 10. **Verificar:** `ruff format .`, `ruff check .`, `pytest -q` y prueba en Swagger.
 
-## 10. Datos offline e históricos *(por definir)*
+## 10. Entidades de datos e históricos *(por definir)*
 
-El frontend trabaja sin conexión y sincroniza después. Antes de la fase 5 hay que decidir con el equipo de frontend:
+El backend guardará **varias entidades**, cada una con su caso de uso y **CRUD completo**, con el mismo molde de `usuarios`. Alcance acordado:
 
-| Tema | Pregunta |
+| Tema | Decisión |
 |---|---|
-| Identificadores | ¿El cliente genera UUID o `client_id`? ¿El backend lo respeta? |
-| Fechas | ¿Se guarda la fecha original del cliente además de `created_at`? |
-| Idempotencia | Si el cliente reenvía un registro, ¿se actualiza o se ignora? |
-| Lotes | ¿Un endpoint recibe muchos registros? ¿Cómo se informa el resultado de cada uno? |
-| Conflictos | ¿Gana el `updated_at` más reciente o el servidor? |
-| Propiedad | ¿Cada registro pertenece a un usuario? ¿Se comparte? |
+| Operaciones | Crear, listar (paginado), obtener, actualizar parcial y borrado lógico, por entidad |
+| Lotes | No hay creación por lotes |
+| Sincronización offline | Sin lógica especial por ahora. El frontend procesa offline y envía lo que corresponda con las operaciones CRUD normales |
+| Ids | `INTEGER PRIMARY KEY AUTOINCREMENT` generado por el servidor |
+| Motor | SQLite |
+
+Pendiente de definir con el equipo: qué entidades son, qué campos tienen, cómo se relacionan con `usuarios` y si cada usuario ve solo sus propios registros. Si el frontend necesitara ids propios o resolución de conflictos, se abriría una fase nueva.
 
 ## 11. Pruebas
 
-- `pytest` y `TestClient` (verificar la dependencia de pruebas vigente). Cada test usa una BD SQLite temporal; **nunca** se toca `data/sema.db`.
-- Fixtures: `app` (con BD temporal) y `client` (ejecuta el lifespan). Un fixture de auth entrega los headers `Authorization`.
+- `pytest` y `TestClient` (necesita `httpx2` con Starlette 1.x). Cada test usa una BD SQLite temporal; **nunca** se toca `data/sema.db`.
+- Fixtures: `app` (con BD temporal) y `client` (ejecuta el lifespan). Cuando exista la autenticación, un fixture de auth entregará los headers `Authorization`.
 - Nombres de test en inglés que describen el comportamiento; estructura preparar → ejecutar → verificar; `parametrize` para casos como la inyección SQL.
 - Estructura de `tests/` igual a la de `app/`.
 

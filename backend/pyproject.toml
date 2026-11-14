@@ -1,0 +1,31 @@
+# Configuración de herramientas (ruff y pytest). No es un paquete instalable.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle (errores)
+    "W",    # pycodestyle (advertencias)
+    "F",    # pyflakes
+    "I",    # orden de imports
+    "N",    # nombres PEP 8
+    "UP",   # sintaxis moderna de Python
+    "B",    # bugbear: errores comunes
+    "SIM",  # simplificaciones
+    "S",    # bandit: seguridad (incluye S608, SQL armado con strings)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: assert es la forma normal de verificar en pytest.
+# S105-S107: los tests usan contraseñas de prueba escritas a mano (nunca reales).
+"tests/**" = ["S101", "S105", "S106", "S107"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI usa llamadas como valores por defecto: def f(x = Depends(...))
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
