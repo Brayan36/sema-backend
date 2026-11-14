@@ -40,7 +40,7 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
    git status; git branch --show-current
    python3 -m pip install -r requirements.txt
    python3 -m ruff check .        # "All checks passed!"
-   python3 -m pytest -q           # 171 en verde
+   python3 -m pytest -q           # 228 en verde
    python3 manage.py migrate:status
    ```
 4. Confirmar con Brayan cuál es el siguiente paso antes de tocar archivos.
@@ -111,7 +111,7 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
 
 ## 8. Estado actual
 
-**Fecha de corte:** 2026-11-14 · **Rama de trabajo:** `feature/estructura-inicial-contexto-ia` · **Tests:** 171 en verde · **ruff:** sin errores
+**Fecha de corte:** 2026-11-14 · **Rama de trabajo:** `feature/estructura-inicial-contexto-ia` · **Tests:** 228 en verde · **ruff:** sin errores
 
 El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-ENTRENAMIENTO-BACKEND`) y se adaptó. Cambios principales: sin `nasa_api_key`, `requests` ni excepciones de servicios externos; usuarios de ejemplo renombrados; y se agregaron `get_by`, WAL con `busy_timeout` y `DbConnection`.
 
@@ -134,10 +134,11 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | `app/core/database.py` | `connect()` (WAL, `busy_timeout`, claves foráneas), `get_db()`, `DbConnection`, `run_migrations()`, `migration_status()`, `utc_now_iso()`, `local_now()`, `to_local()` |
 | `app/core/exceptions.py`, `error_handlers.py`, `log_config.py` | Errores propios, JSON uniforme, 500 con `error_id` y CORS, `IntegrityError` UNIQUE → 409 |
 | `app/core/base_schema.py` | `AuditSchema`, `PageSchema[T]`, `SortDirection` |
-| `app/core/base_repository.py` | CRUD genérico: `get_by_id`, `get_by`, `list_all`, `count`, `exists_by`, `create`, `update`, `soft_delete` |
+| `app/core/base_repository.py` | CRUD genérico: `get_by_id`, `get_by`, `list_all` y `count` (con `filters`, `ranges`, `search`), `exists_by`, `create`, `update`, `soft_delete` |
+| `app/core/list_filters.py` | Dependencia `list_filters`: parámetros `q`, `created_from`, `created_to` reutilizables en cualquier router |
 | `app/core/base_seeder.py`, `app/seeders/` | Clase base y `UsuarioSeeder` (4 activos + 1 eliminado) |
 | `app/core/security.py` | `hash_password`, `verify_password` (argon2). El JWT es de la fase 4 |
-| `app/features/usuarios/` | `repository`, `schemas`, `service`, `router`: el molde de las features |
+| `app/features/usuarios/` | `repository`, `schemas`, `service`, `router`: CRUD completo con listado filtrable (`q`, `created_from`, `created_to`) |
 | `app/features/auth/` | Carpeta vacía, lista para la fase 4 |
 | `app/features/_template/` | Molde de feature con CRUD completo (entidad `Ejemplo`): `README.md` con los pasos, `repository`, `schemas`, `service`, `router` y `migration.sql.example`. Probado en `tests/features/test_template.py`; no está registrado en `main.py` |
 | `manage.py` | `migrate`, `migrate:status`, `db:seed`, `migrate:fresh [--seed]` |
@@ -150,8 +151,8 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 ## 9. Pendientes abiertos
 
 - **Definir las entidades** (varias, cada una con su caso de uso): campos, relaciones con `usuarios` y qué es el "histórico". Sin esto no se puede empezar la fase 5.
-- ¿Cada usuario ve solo sus propios registros o hay datos compartidos? Si es lo primero, `BaseRepository` necesitará filtros por usuario.
-- ¿Los listados necesitarán filtros (rango de fechas, estado)? Hoy `list_all` y `count` no filtran.
+- ¿Cada usuario ve solo sus propios registros o hay datos compartidos? Si es lo primero, se usa `filters={"user_id": ...}` desde el service.
+- Filtros de listado: ya existen igualdad, lista, rango y búsqueda de texto (ver `ARCHITECTURE.md`, 5.4). Falta ver si alguna entidad necesita algo más (por ejemplo `OR` entre columnas u ordenar por varias columnas).
 - ¿Habrá roles o permisos? (El diseño original los dejaba fuera de alcance.)
 - Coordinar con el compañero de la fase 4: `get_current_user`, login, bootstrap del primer usuario y validación de `JWT_SECRET`.
 - Si el frontend offline necesita ids generados en el cliente o resolución de conflictos, abrir una fase nueva (hoy fuera de alcance).
@@ -167,3 +168,4 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | 2026-11-14 | Análisis del repo de entrenamiento | Se revisó el zip de `SEMA-ENTRENAMIENTO-BACKEND` (fases 1 a 3, sin JWT). Hallazgos: `BaseRepository` sin `get_by`, SQLite sin WAL y commit posterior a la respuesta |
 | 2026-11-14 | Paso 1: estructura y core | Se importó `backend/` y se adaptó (sin NASA ni servicios externos, usuarios de ejemplo renombrados). Agregados: `get_by`, WAL + `busy_timeout`, `DbConnection` (commit antes de responder), `features/auth/` vacía. README y `requirements.txt` podado. Decisiones de Brayan: ids unsigned bigint, CRUD completo por entidad, sin lotes, JWT lo hace un compañero, Postman después. 158 tests, ruff limpio, probado con servidor real |
 | 2026-11-14 | `features/_template/` | Molde de feature con CRUD completo (`Ejemplo`), con README de pasos y migración de ejemplo. Un test lo registra en una app de prueba y recorre el CRUD, y otro verifica que la migración coincide con el repositorio. Se comprobó creando una feature `cultivos` solo con los pasos del README. 171 tests |
+| 2026-11-14 | Commit y filtros de listado | Commit `0922f98` "estructura inicial backend fast-api" (sin push). Después, filtros en el core: `filters` (igualdad, `NULL`, `IN`), `ranges` (inclusivo, fechas a UTC) y `search` (parcial, escapando `%`, `_` y `\`), todo con lista blanca y `?`; `count` con los mismos filtros para que `total` sea exacto. `list_filters` agrega `q`, `created_from` y `created_to` a `usuarios` y a la plantilla. Los tests de escape se comprobaron rompiendo el código a propósito. 228 tests, ruff limpio, servidor real probado |

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.base_repository import MAX_LIMIT
 from app.core.base_schema import PageSchema, SortDirection
 from app.core.database import DbConnection
+from app.core.list_filters import ListFilters, list_filters
 from app.features.usuarios.repository import UsuarioRepository
 from app.features.usuarios.schemas import OrdenUsuario, UsuarioCreate, UsuarioOut, UsuarioUpdate
 from app.features.usuarios.service import UsuarioService
@@ -41,9 +42,12 @@ def listar(
     offset: int = Query(0, ge=0, description="Cuántos registros saltar"),
     order_by: OrdenUsuario = Query("id", description="Columna para ordenar"),
     direction: SortDirection = Query("asc", description="asc o desc"),
+    filtros: ListFilters = Depends(list_filters),
     service: UsuarioService = Depends(get_usuario_service),
 ) -> PageSchema[UsuarioOut]:
-    return service.listar(limit=limit, offset=offset, order_by=order_by, direction=direction)
+    return service.listar(
+        limit=limit, offset=offset, order_by=order_by, direction=direction, **filtros.as_kwargs()
+    )
 
 
 @router.get("/{usuario_id}")

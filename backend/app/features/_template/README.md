@@ -13,7 +13,7 @@ Ejemplo: la entidad `cultivo`.
    - `ejemplos` → `cultivos`, `ejemplo` → `cultivo`, `Ejemplo` → `Cultivo`, `EJEMPLO` → `CULTIVO`
    - `app.features._template` → `app.features.cultivos`
 3. **Campos:** cambiar `nombre` y `descripcion` por los de la entidad, en los tres lugares que deben coincidir:
-   - `repository.py` → `columns` y `sortable`
+   - `repository.py` → `columns`, `sortable` y `searchable`
    - `schemas.py` → `...Create`, `...Update`, `...Out`, `Orden...` y `CAMPOS_NO_NULOS`
    - la migración (paso 4)
 4. **Migración:** copiar `migration.sql.example` a `migrations/00X_create_cultivos.sql` (siguiente número libre), ajustar columnas y aplicar con `py manage.py migrate`.
@@ -27,13 +27,14 @@ Ejemplo: la entidad `cultivo`.
    ```
    Cuando exista la autenticación, agregar `dependencies=[Depends(get_current_user)]` al `APIRouter`.
 8. **Tests:** copiar `tests/features/test_template.py` a `tests/features/cultivos/` y adaptarlo.
-9. **Verificar** desde `backend/`: `py -m ruff format .`, `py -m ruff check .`, `py -m pytest -q` y probar en Swagger (`/docs`).
+9. **Filtros:** el listado ya trae `q`, `created_from` y `created_to`. Un filtro propio (por ejemplo `estado`) se agrega como parámetro `Query` en el router y se pasa al service como `filters={"estado": estado}`.
+10. **Verificar** desde `backend/`: `py -m ruff format .`, `py -m ruff check .`, `py -m pytest -q` y probar en Swagger (`/docs`).
 
 ## Qué hace cada archivo
 
 | Archivo | Responsabilidad |
 |---|---|
-| `repository.py` | Declara tabla, columnas y orden permitido. El CRUD se hereda de `BaseRepository` |
+| `repository.py` | Declara tabla, columnas, orden permitido y columnas de búsqueda (`searchable`). El CRUD y los filtros se heredan de `BaseRepository` |
 | `schemas.py` | Contrato JSON de entrada y salida, con validaciones |
 | `service.py` | Lógica de negocio. No conoce HTTP |
 | `router.py` | Endpoints de una línea. Solo traduce HTTP |

@@ -45,7 +45,7 @@ backend/
 ├── app/
 │   ├── main.py
 │   ├── core/
-│   │   ├── config.py · database.py · base_repository.py · base_schema.py
+│   │   ├── config.py · database.py · base_repository.py · base_schema.py · list_filters.py
 │   │   ├── base_seeder.py · security.py · exceptions.py
 │   │   └── error_handlers.py · log_config.py
 │   ├── features/
@@ -105,7 +105,15 @@ Cada repositorio declara `table`, `columns` (escribibles y filtrables) y `sortab
 
 `get_by` devuelve el primer registro activo (menor `id`) cuya columna vale el valor pedido, o `None`. Ejemplo: `repository.get_by("email", "ana@sema.example")`. La columna debe estar en `columns`; si no, `InvalidFieldError` (400).
 
-**Limitación conocida:** `list_all` y `count` no filtran. Si una entidad necesita listar por usuario o por rango de fechas, se amplían en el core (con lista blanca y tests de inyección), no con SQL en el service.
+**Filtros de `list_all` y `count`** (argumentos de solo palabra clave; los valores siempre van con `?`):
+
+| Argumento | Ejemplo | Efecto |
+|---|---|---|
+| `filters` | `{"user_id": 3}` | Igualdad. `None` → `IS NULL`. Lista → `IN` (máx. 100 valores; vacía → sin resultados) |
+| `ranges` | `{"created_at": (desde, hasta)}` | Rango inclusivo; cada límite puede ser `None`. Los `datetime` se pasan a UTC. Mínimo > máximo → `InvalidFieldError` |
+| `search` | `"maíz"` | `LIKE` parcial en las columnas de `searchable`, escapando `%`, `_` y `\`. Sin distinguir mayúsculas solo en ASCII (límite de SQLite) |
+
+Se filtra por las `columns` del repositorio más `id`, `created_at` y `updated_at`; `deleted_at` nunca. Todo pasa por la lista blanca. `count` acepta los mismos filtros, así que el `total` de `PageSchema` cuenta lo filtrado: el service debe pasar **los mismos criterios** a `list_all` y a `count`. En los routers, `Depends(list_filters)` (`core/list_filters.py`) agrega los parámetros `q`, `created_from` y `created_to`; un filtro propio (por ejemplo `estado`) se agrega como `Query` y se pasa en `filters`. Si una entidad necesita otra forma de filtrar (por ejemplo `OR` entre columnas), se amplía el core con tests de inyección, no con SQL en el service.
 
 Los **valores** siempre van con `?`. Los **identificadores** se interpolan solo después de pasar la lista blanca; por eso este es el único archivo que puede usar `# noqa: S608`.
 

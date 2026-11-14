@@ -78,7 +78,8 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 - [x] `core/base_repository.py`: `get_by_id`, **`get_by`**, `list_all`, `count`, `create`, `update`, `soft_delete`, `exists_by`, con lista blanca de columnas y de `order_by`
 - [x] `manage.py`: `migrate`, `migrate:status`, `db:seed`, `migrate:fresh [--seed]` (los dos últimos bloqueados en producción)
 - [x] `core/base_seeder.py` y `app/seeders/`
-- [x] Tests: CRUD, timestamps, soft delete, inyección SQL (también en `get_by`)
+- [x] Tests: CRUD, timestamps, soft delete, inyección SQL (también en `get_by` y en los filtros)
+- [x] Filtros de listado: `filters` (igualdad, `NULL`, `IN`), `ranges` (inclusivo, fechas a UTC) y `search` (parcial, con escape de `%` y `_`); `count` con los mismos filtros
 
 **Listo cuando:** los tests pasan y no hay SQL armado con datos externos fuera de `BaseRepository`. *(Cumplido.)*
 
@@ -86,6 +87,7 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 - [x] Migración `001_create_usuarios.sql` con índice único parcial en `email` (solo activos)
 - [x] `schemas.py`: `UsuarioCreate`, `UsuarioUpdate` (rechaza `null`), `UsuarioOut` (sin `password_hash`); email normalizado a minúsculas
 - [x] `repository.py`, `service.py` (hash, duplicados → 409, no encontrado → 404) y `router.py` con los 5 endpoints
+- [x] Listado con filtros `q` (nombre y email), `created_from` y `created_to`
 - [x] `UsuarioSeeder` (4 usuarios `@sema.example` + 1 eliminado, idempotente)
 - [x] Tests del service y de los endpoints (incluye caracteres especiales guardados en la BD)
 
@@ -108,7 +110,7 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 
 - [ ] Definir cada entidad: campos, relaciones con `usuarios` y caso de uso
 - [ ] Por entidad: migración, `schemas.py`, `repository.py`, `service.py`, `router.py`, seeder (opcional) y tests
-- [ ] Si un listado necesita filtros (por usuario, por rango de fechas), ampliar `BaseRepository.list_all` y `count` en el core, con lista blanca y tests de inyección
+- [x] Filtros de listado en el core (hecho): `filters`, `ranges` y `search` en `list_all` y `count`, y los parámetros `q`, `created_from`, `created_to` con `list_filters`. Por entidad solo falta declarar `searchable` y, si hace falta, un filtro propio con `Query`
 - [ ] Registrar los routers en `main.py` y protegerlos con `get_current_user` (cuando exista)
 
 **Listo cuando:** cada entidad pasa su checklist de PR y el contrato JSON está acordado con el frontend.

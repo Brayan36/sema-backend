@@ -7,6 +7,10 @@ El service decide QUÉ hacer y en qué ORDEN. No sabe nada de HTTP: no usa `Requ
 Métodos con nombres en español: crear, listar, obtener, actualizar, eliminar.
 """
 
+from collections.abc import Mapping
+from typing import Any
+
+from app.core.base_repository import RangeValue
 from app.core.base_schema import PageSchema
 from app.core.exceptions import ConflictError, NotFoundError
 from app.features._template.repository import EjemploRepository
@@ -30,13 +34,18 @@ class EjemploService:
         offset: int = 0,
         order_by: str = "id",
         direction: str = "asc",
+        search: str | None = None,
+        ranges: Mapping[str, RangeValue] | None = None,
+        filters: Mapping[str, Any] | None = None,
     ) -> PageSchema[EjemploOut]:
+        # Los mismos filtros van al listado y al conteo: `total` cuenta lo filtrado.
+        criterios = {"filters": filters, "ranges": ranges, "search": search}
         registros = self.repository.list_all(
-            limit=limit, offset=offset, order_by=order_by, direction=direction
+            limit=limit, offset=offset, order_by=order_by, direction=direction, **criterios
         )
         return PageSchema[EjemploOut](
             items=[EjemploOut.model_validate(registro) for registro in registros],
-            total=self.repository.count(),
+            total=self.repository.count(**criterios),
             limit=limit,
             offset=offset,
         )

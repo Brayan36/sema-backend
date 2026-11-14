@@ -24,6 +24,16 @@ def utc_now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def to_utc_iso(value: datetime) -> str:
+    """Convierte un datetime al formato en que se guardan las fechas (UTC, ISO 8601).
+
+    Sirve para comparar contra columnas como `created_at`. Sin zona horaria se asume UTC.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat(timespec="seconds")
+
+
 def local_now() -> datetime:
     """Fecha y hora actual en la zona horaria configurada (TIMEZONE)."""
     return datetime.now(ZoneInfo(settings.timezone))

@@ -128,3 +128,15 @@ def test_patch_rejects_null_in_not_null_field_but_allows_it_in_nullable(client, 
     limpiado = client.patch("/ejemplos/1", json={"descripcion": None})
     assert limpiado.status_code == 200
     assert limpiado.json()["descripcion"] is None
+
+
+def test_list_filters_search_and_date_range(client, crear):
+    crear(nombre="Riego", descripcion="Cada tres días")
+    crear(nombre="Abono")
+
+    por_texto = client.get("/ejemplos", params={"q": "días"}).json()
+    assert [item["nombre"] for item in por_texto["items"]] == ["Riego"]
+    assert por_texto["total"] == 1
+
+    futuro = client.get("/ejemplos", params={"created_from": "2999-01-01T00:00:00Z"}).json()
+    assert (futuro["items"], futuro["total"]) == ([], 0)

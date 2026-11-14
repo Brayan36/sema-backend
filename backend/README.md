@@ -162,14 +162,14 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 |---|---|---|
 | `GET` | `/health` | Estado de la API |
 | `POST` | `/usuarios` | Crear usuario |
-| `GET` | `/usuarios?limit=&offset=&order_by=&direction=` | Listar usuarios activos (paginado) |
+| `GET` | `/usuarios?limit=&offset=&order_by=&direction=&q=&created_from=&created_to=` | Listar usuarios activos (paginado, ordenado y filtrado) |
 | `GET` | `/usuarios/{id}` | Obtener usuario |
 | `PATCH` | `/usuarios/{id}` | Actualizar usuario (parcial) |
 | `DELETE` | `/usuarios/{id}` | Eliminar usuario (borrado lógico) |
 
 **Hoy los endpoints de `/usuarios` funcionan sin token.** La protección llega con la fase de autenticación (`/auth/login`, `/auth/me` y `get_current_user`).
 
-### Listar con paginación y orden
+### Listar con paginación, orden y filtros
 
 | Parámetro | Por defecto | Valores |
 |---|---|---|
@@ -177,7 +177,11 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 | `offset` | `0` | 0 o más (cuántos registros saltar) |
 | `order_by` | `id` | `id`, `nombre`, `email`, `created_at` |
 | `direction` | `asc` | `asc`, `desc` |
+| `q` | *(sin filtro)* | Texto a buscar en `nombre` y `email`. Parcial y sin distinguir mayúsculas (solo ASCII: no ignora el caso de tildes ni de la ñ). `%` y `_` se buscan como texto normal |
+| `created_from` | *(sin filtro)* | Creados desde esta fecha y hora, inclusive. ISO 8601 en UTC con `Z`: `2026-11-14T00:00:00Z`. Sin zona horaria se asume UTC |
+| `created_to` | *(sin filtro)* | Creados hasta esta fecha y hora, inclusive |
 
+Los filtros se combinan con AND, y `total` cuenta **solo lo que cumple los filtros**. Si `created_from` es posterior a `created_to`, responde **400**. En una URL, el `+` de un offset horario debe ir como `%2B` (con `Z` no hace falta).
 `GET /usuarios?limit=2&order_by=nombre` responde:
 ```json
 {
@@ -258,14 +262,24 @@ Cada repositorio solo declara su tabla y columnas (ver `features/usuarios/reposi
 |---|---|
 | `get_by_id(id)` | Un registro activo, o `None` |
 | `get_by(column, value, include_deleted=False)` | El primer registro activo con ese valor en la columna, o `None` |
-| `list_all(limit, offset, order_by, direction)` | Listado paginado y ordenado |
-| `count()` | Cantidad de registros activos |
+| `list_all(limit, offset, order_by, direction, *, filters, ranges, search)` | Listado paginado, ordenado y filtrado |
+| `count(*, filters, ranges, search)` | Cantidad de registros activos que cumplen los filtros |
 | `exists_by(column, value, exclude_id, include_deleted)` | ¿Existe un registro con ese valor? |
 | `create(data)` | Inserta y agrega `created_at` y `updated_at` |
 | `update(id, data)` | Actualiza solo los campos recibidos |
 | `soft_delete(id)` | Borrado lógico (`deleted_at`) |
 
 Las columnas se validan contra una lista blanca: cualquier otra lanza `InvalidFieldError` (400).
+
+**Filtros de `list_all` y `count`** (los valores siempre viajan como parámetros `?`):
+
+| Argumento | Ejemplo | Efecto |
+|---|---|---|
+| `filters` | `{"estado": "activo"}` | Igualdad. `None` → `IS NULL`. Una lista → `IN` (hasta 100 valores) |
+| `ranges` | `{"created_at": (desde, hasta)}` | Rango inclusivo. Cualquier límite puede ser `None`. Los `datetime` se convierten a UTC |
+| `search` | `"maíz"` | Texto parcial en las columnas de `searchable` |
+
+Se puede filtrar por las `columns` del repositorio más `id`, `created_at` y `updated_at`. Para habilitar la búsqueda, el repositorio declara `searchable = ("nombre", "email")`. En un router, `Depends(list_filters)` (de `app/core/list_filters.py`) agrega `q`, `created_from` y `created_to`.
 
 ## Agregar una feature nueva (resumen)
 

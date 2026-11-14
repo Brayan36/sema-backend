@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.base_repository import MAX_LIMIT
 from app.core.base_schema import PageSchema, SortDirection
 from app.core.database import DbConnection
+from app.core.list_filters import ListFilters, list_filters
 from app.features._template.repository import EjemploRepository
 from app.features._template.schemas import (
     EjemploCreate,
@@ -48,9 +49,14 @@ def listar(
     offset: int = Query(0, ge=0, description="Cuántos registros saltar"),
     order_by: OrdenEjemplo = Query("id", description="Columna para ordenar"),
     direction: SortDirection = Query("asc", description="asc o desc"),
+    filtros: ListFilters = Depends(list_filters),  # q, created_from, created_to
     service: EjemploService = Depends(get_ejemplo_service),
 ) -> PageSchema[EjemploOut]:
-    return service.listar(limit=limit, offset=offset, order_by=order_by, direction=direction)
+    # Un filtro propio (ej. `estado`) se agrega como parámetro `Query` y se pasa a
+    # `service.listar(..., filters={"estado": estado})`.
+    return service.listar(
+        limit=limit, offset=offset, order_by=order_by, direction=direction, **filtros.as_kwargs()
+    )
 
 
 @router.get("/{ejemplo_id}")

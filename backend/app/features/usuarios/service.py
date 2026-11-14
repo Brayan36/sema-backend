@@ -6,6 +6,10 @@ excepción del core (`NotFoundError`, `ConflictError`) y el handler central la
 convierte en la respuesta HTTP correcta.
 """
 
+from collections.abc import Mapping
+from typing import Any
+
+from app.core.base_repository import RangeValue
 from app.core.base_schema import PageSchema
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.security import hash_password
@@ -36,13 +40,18 @@ class UsuarioService:
         offset: int = 0,
         order_by: str = "id",
         direction: str = "asc",
+        search: str | None = None,
+        ranges: Mapping[str, RangeValue] | None = None,
+        filters: Mapping[str, Any] | None = None,
     ) -> PageSchema[UsuarioOut]:
+        # Los mismos filtros van al listado y al conteo: `total` cuenta lo filtrado.
+        criterios = {"filters": filters, "ranges": ranges, "search": search}
         registros = self.repository.list_all(
-            limit=limit, offset=offset, order_by=order_by, direction=direction
+            limit=limit, offset=offset, order_by=order_by, direction=direction, **criterios
         )
         return PageSchema[UsuarioOut](
             items=[UsuarioOut.model_validate(registro) for registro in registros],
-            total=self.repository.count(),
+            total=self.repository.count(**criterios),
             limit=limit,
             offset=offset,
         )
