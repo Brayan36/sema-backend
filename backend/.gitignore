@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Entorno virtual (solo si se usa la opción con venv)
+.venv/
+
+# Secretos
+.env
+
+# Base de datos local
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Caché de herramientas
+.pytest_cache/
+.ruff_cache/

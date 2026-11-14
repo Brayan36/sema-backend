@@ -23,7 +23,7 @@
 
 Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el funcionamiento **offline**. El backend recibe, guarda y entrega los resultados y el histórico.
 
-**Consecuencia de diseño:** como el frontend trabaja sin conexión, el backend tendrá que aceptar datos que se generaron antes y llegan después. Esto afecta los identificadores, las fechas y los conflictos. Ver `PLAN.md`, fase 5, y la sección 9 (pendientes).
+**Datos:** habrá **varias entidades**, cada una con su caso de uso y **sus eventos CRUD completos** (crear, listar, obtener, actualizar y borrado lógico), con el mismo molde de la feature `usuarios`. Por ahora **no** hay creación por lotes ni lógica de sincronización: el alcance es CRUD sobre SQLite. Si el frontend offline lo necesita más adelante (ids generados en el cliente, conflictos), se reabre como una fase nueva.
 
 ## 3. Equipo
 
@@ -33,9 +33,16 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
 
 ## 4. Cómo retomar
 
-1. Leer `.ai/README.md`, este archivo, `PLAN.md` y `ARCHITECTURE.md`.
-2. Revisar el código en `backend/app/core/` (cuando exista).
-3. Verificar el entorno desde `backend/`: `git status`, versión de Python (3.12 o superior), instalar `requirements.txt`, `ruff check .` y `pytest -q`.
+1. Leer `.ai/README.md`, este archivo, `PLAN.md` y `ARCHITECTURE.md`, y después `backend/README.md`.
+2. Revisar el código en `backend/app/core/`. **El código es la fuente de verdad.**
+3. Verificar el entorno desde `backend/` (en Windows `py`, en Linux/macOS `python3`):
+   ```
+   git status; git branch --show-current
+   python3 -m pip install -r requirements.txt
+   python3 -m ruff check .        # "All checks passed!"
+   python3 -m pytest -q           # 228 en verde
+   python3 manage.py migrate:status
+   ```
 4. Confirmar con Brayan cuál es el siguiente paso antes de tocar archivos.
 
 ## 5. Protocolo de trabajo
@@ -73,15 +80,22 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
 | Fechas | Se guardan y entregan en UTC, ISO 8601. `TIMEZONE=America/Bogota` solo para lógica que dependa de la hora local |
 | Listados | Paginados con `PageSchema[T]` |
 | Validación de entrada | `extra="forbid"`; `null` explícito en un PATCH → 422 |
-| Entorno de Python | Sin `venv` por defecto; `venv` queda como opción documentada *(por confirmar)* |
+| Entorno de Python | Sin `venv` por defecto; `venv` queda como opción documentada en `backend/README.md` |
 | **Nuevo:** sin analítica ni APIs externas | Decisión de Brayan: lo hace el frontend (offline / `localStorage`) |
+| **Nuevo:** ids | `INTEGER PRIMARY KEY AUTOINCREMENT` (64 bits, positivo): el *unsigned big integer* práctico de SQLite. Ver la nota en `backend/README.md` |
+| **Nuevo:** alcance de datos | Varias entidades, CRUD completo por entidad, sin creación por lotes |
+| **Nuevo:** `BaseRepository.get_by(column, value)` | Aprobado por Brayan. Lista blanca de columnas, ignora eliminados salvo `include_deleted=True` |
+| **Nuevo:** SQLite con WAL y `busy_timeout=5000` | Evita `database is locked` con peticiones concurrentes |
+| **Nuevo:** conexión con `DbConnection` | El commit ocurre antes de responder (ver trampa 12) |
+| **Nuevo:** JWT | Lo implementa un compañero. La estructura queda lista (`features/auth/`) |
+| **Nuevo:** Postman | Se adapta después |
 
-## 7. Trampas conocidas (heredadas, verificar al reproducirlas)
+## 7. Trampas conocidas
 
 | # | Problema | Solución |
 |---|---|---|
 | 1 | En Windows, `python` abre la Microsoft Store | Usar `py` |
-| 2 | `TestClient` de Starlette 1.x avisa que `httpx` está obsoleto | Verificar la dependencia de pruebas vigente al instalar (el original usaba `httpx2`) |
+| 2 | `TestClient` de Starlette 1.x avisa que `httpx` está obsoleto | La dependencia de pruebas es `httpx2` (verificada) |
 | 3 | Un método llamado `list` tapa el `list` de Python | Llamarlo `list_all` |
 | 4 | Starlette responde los 500 fuera de CORS (falso error de CORS) | Middleware `catch_unexpected_errors`; `register_error_handlers(app)` va **antes** de `add_middleware(CORSMiddleware)` |
 | 5 | `re.match` con `$` acepta un salto de línea final | Usar `fullmatch` |
@@ -91,30 +105,58 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
 | 9 | Un PATCH con `null` termina en 500 por columna `NOT NULL` | `model_validator` que rechaza `null` + `model_dump(exclude_unset=True)` |
 | 10 | Windows no trae base de zonas horarias | Dependencia `tzdata`; validar `TIMEZONE` al arrancar |
 | 11 | `migrate:fresh` no borra la BD si está abierta (Windows) | Cerrar visor SQL y servidor antes |
+| 12 | Con FastAPI 0.162, el código posterior al `yield` de una dependencia corre **después** de enviar la respuesta: el `commit` de `get_db` llegaba tarde y un `GET` inmediato podía no ver el dato recién guardado | Pedir la conexión con `DbConnection` (`Depends(get_db, scope="function")`), nunca con `Depends(get_db)` a secas. Un test lo verifica y falla si se quita el `scope` |
+| 13 | SQLite sin WAL ni `busy_timeout` puede fallar con `database is locked` si dos peticiones escriben a la vez | `connect()` activa `journal_mode=WAL` y `busy_timeout=5000`. Un test lo verifica |
+| 14 | `id BIGINT UNSIGNED PRIMARY KEY` no crea el id automático en SQLite (solo `INTEGER PRIMARY KEY` lo hace) | Usar `INTEGER PRIMARY KEY AUTOINCREMENT`: ya es de 64 bits y positivo |
 
 ## 8. Estado actual
 
-**Fecha de corte:** 2026-11-14 · **Rama de trabajo:** `ccr-100e636c-48me4o` · **Código:** ninguno todavía
+**Fecha de corte:** 2026-11-14 · **Rama de trabajo:** `feature/estructura-inicial-contexto-ia` · **Tests:** 228 en verde · **ruff:** sin errores
 
-El repositorio solo contiene `LICENSE` y esta carpeta `.ai/`. **Todas las fases están pendientes.** Ver `PLAN.md`.
+El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-ENTRENAMIENTO-BACKEND`) y se adaptó. Cambios principales: sin `nasa_api_key`, `requests` ni excepciones de servicios externos; usuarios de ejemplo renombrados; y se agregaron `get_by`, WAL con `busy_timeout` y `DbConnection`.
 
 | Fase | Estado |
 |---|---|
-| Documentación de contexto (`.ai/`) | ✅ Creada (pendiente de revisión de Brayan) |
-| 1. Fundación | Pendiente |
-| 2. Core de datos y seeders | Pendiente |
-| 3. Feature `usuarios` | Pendiente |
-| 4. Autenticación JWT | Pendiente |
-| 5. Persistencia de datos e históricos | Pendiente (requiere definir entidades) |
-| 6. Plantilla y documentación | Pendiente |
+| Documentación de contexto (`.ai/`) | ✅ Creada y actualizada |
+| 1. Fundación | ✅ Completada |
+| 2. Core de datos y seeders | ✅ Completada |
+| 3. Feature `usuarios` | ✅ Completada |
+| 4. Autenticación JWT | ⏭️ Pendiente (la implementa un compañero) |
+| 5. Entidades de datos e históricos | Pendiente (requiere definir entidades) |
+| 6. Plantilla y documentación | ✅ `_template/` y README listos |
+
+### Inventario de lo implementado (`backend/`)
+
+| Archivo | Responsabilidad |
+|---|---|
+| `app/main.py` | `create_app()`: logging, handlers de error, CORS (en ese orden), `/health`, router de `usuarios`, migraciones al arrancar |
+| `app/core/config.py` | `Settings` desde `backend/.env`; `TIMEZONE` validada al arrancar |
+| `app/core/database.py` | `connect()` (WAL, `busy_timeout`, claves foráneas), `get_db()`, `DbConnection`, `run_migrations()`, `migration_status()`, `utc_now_iso()`, `local_now()`, `to_local()` |
+| `app/core/exceptions.py`, `error_handlers.py`, `log_config.py` | Errores propios, JSON uniforme, 500 con `error_id` y CORS, `IntegrityError` UNIQUE → 409 |
+| `app/core/base_schema.py` | `AuditSchema`, `PageSchema[T]`, `SortDirection` |
+| `app/core/base_repository.py` | CRUD genérico: `get_by_id`, `get_by`, `list_all` y `count` (con `filters`, `ranges`, `search`), `exists_by`, `create`, `update`, `soft_delete` |
+| `app/core/list_filters.py` | Dependencia `list_filters`: parámetros `q`, `created_from`, `created_to` reutilizables en cualquier router |
+| `app/core/base_seeder.py`, `app/seeders/` | Clase base y `UsuarioSeeder` (4 activos + 1 eliminado) |
+| `app/core/security.py` | `hash_password`, `verify_password` (argon2). El JWT es de la fase 4 |
+| `app/features/usuarios/` | `repository`, `schemas`, `service`, `router`: CRUD completo con listado filtrable (`q`, `created_from`, `created_to`) |
+| `app/features/auth/` | Carpeta vacía, lista para la fase 4 |
+| `app/features/_template/` | Molde de feature con CRUD completo (entidad `Ejemplo`): `README.md` con los pasos, `repository`, `schemas`, `service`, `router` y `migration.sql.example`. Probado en `tests/features/test_template.py`; no está registrado en `main.py` |
+| `manage.py` | `migrate`, `migrate:status`, `db:seed`, `migrate:fresh [--seed]` |
+| `migrations/001_create_usuarios.sql` | Tabla `usuarios` + índice único parcial de email |
+| `tests/` | Core, seeders, manage, `main` y la feature `usuarios` |
+| `requirements.txt`, `pyproject.toml`, `.env.example`, `.gitignore`, `README.md` | Configuración y documentación |
+
+**No existe todavía:** autenticación, entidades de datos y colección de Postman.
 
 ## 9. Pendientes abiertos
 
-- **Definir las entidades del histórico** y qué guarda cada una. Sin esto no se puede diseñar la fase 5.
-- **Definir cómo sincroniza el frontend offline:** identificadores generados en el cliente (UUID o `client_id`), fecha original del registro vs. fecha de recepción, subida por lotes, idempotencia y resolución de conflictos.
-- ¿Los usuarios tendrán roles o permisos? (el original los dejaba fuera de alcance).
-- ¿Cada usuario ve solo su propio histórico o hay datos compartidos?
-- Confirmar `venv` sí o no, y el sistema operativo del equipo (el original asumía Windows y `py`).
+- **Definir las entidades** (varias, cada una con su caso de uso): campos, relaciones con `usuarios` y qué es el "histórico". Sin esto no se puede empezar la fase 5.
+- ¿Cada usuario ve solo sus propios registros o hay datos compartidos? Si es lo primero, se usa `filters={"user_id": ...}` desde el service.
+- Filtros de listado: ya existen igualdad, lista, rango y búsqueda de texto (ver `ARCHITECTURE.md`, 5.4). Falta ver si alguna entidad necesita algo más (por ejemplo `OR` entre columnas u ordenar por varias columnas).
+- ¿Habrá roles o permisos? (El diseño original los dejaba fuera de alcance.)
+- Coordinar con el compañero de la fase 4: `get_current_user`, login, bootstrap del primer usuario y validación de `JWT_SECRET`.
+- Si el frontend offline necesita ids generados en el cliente o resolución de conflictos, abrir una fase nueva (hoy fuera de alcance).
+- Adaptar la colección de Postman.
 - Probar CORS con el proyecto React real.
 - Confirmar la fecha exacta del evento.
 
@@ -123,3 +165,7 @@ El repositorio solo contiene `LICENSE` y esta carpeta `.ai/`. **Todas las fases 
 | Fecha | Sesión | Resultado |
 |---|---|---|
 | 2026-11-14 | Creación de `.ai/` | A partir de 4 documentos de un proyecto de entrenamiento previo, se adaptaron el contexto, el plan y la arquitectura. Cambio de alcance indicado por Brayan: sin análisis ni APIs externas (van en el frontend offline); el backend persiste datos e históricos y controla usuarios. Se descartaron `BaseApiClient`, `analysis.py` y la etapa NASA. Nombres de archivo en inglés |
+| 2026-11-14 | Análisis del repo de entrenamiento | Se revisó el zip de `SEMA-ENTRENAMIENTO-BACKEND` (fases 1 a 3, sin JWT). Hallazgos: `BaseRepository` sin `get_by`, SQLite sin WAL y commit posterior a la respuesta |
+| 2026-11-14 | Paso 1: estructura y core | Se importó `backend/` y se adaptó (sin NASA ni servicios externos, usuarios de ejemplo renombrados). Agregados: `get_by`, WAL + `busy_timeout`, `DbConnection` (commit antes de responder), `features/auth/` vacía. README y `requirements.txt` podado. Decisiones de Brayan: ids unsigned bigint, CRUD completo por entidad, sin lotes, JWT lo hace un compañero, Postman después. 158 tests, ruff limpio, probado con servidor real |
+| 2026-11-14 | `features/_template/` | Molde de feature con CRUD completo (`Ejemplo`), con README de pasos y migración de ejemplo. Un test lo registra en una app de prueba y recorre el CRUD, y otro verifica que la migración coincide con el repositorio. Se comprobó creando una feature `cultivos` solo con los pasos del README. 171 tests |
+| 2026-11-14 | Commit y filtros de listado | Commit `0922f98` "estructura inicial backend fast-api" (sin push). Después, filtros en el core: `filters` (igualdad, `NULL`, `IN`), `ranges` (inclusivo, fechas a UTC) y `search` (parcial, escapando `%`, `_` y `\`), todo con lista blanca y `?`; `count` con los mismos filtros para que `total` sea exacto. `list_filters` agrega `q`, `created_from` y `created_to` a `usuarios` y a la plantilla. Los tests de escape se comprobaron rompiendo el código a propósito. 228 tests, ruff limpio, servidor real probado |
