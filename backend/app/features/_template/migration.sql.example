@@ -1,0 +1,18 @@
+-- Plantilla de migración. Para usarla:
+--   1. Copiarla a backend/migrations/ con el siguiente número libre y el nombre de la
+--      tabla: por ejemplo 002_create_cultivos.sql (cambiar "ejemplos" por la tabla real).
+--   2. Aplicarla con `py manage.py migrate` y revisarla con `py manage.py migrate:status`.
+-- Una migración ya integrada NUNCA se edita: para cambiar algo, se crea otra.
+
+-- Convención de todas las tablas: id, created_at, updated_at y deleted_at (siempre en inglés).
+CREATE TABLE ejemplos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre      TEXT    NOT NULL,
+    descripcion TEXT,
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL,
+    deleted_at  TEXT
+);
+
+-- Único solo entre los activos: un registro eliminado no bloquea su nombre.
+CREATE UNIQUE INDEX ux_ejemplos_nombre_activo ON ejemplos (nombre) WHERE deleted_at IS NULL;
