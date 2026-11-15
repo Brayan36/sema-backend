@@ -38,10 +38,11 @@ def require_permission(permission_name: str) -> Callable:
     ) -> UsuarioOut:
         row = connection.execute(
             "SELECT 1 FROM usuario_roles ur "
+            "JOIN roles r ON r.id = ur.rol_id "
             "JOIN rol_permisos rp ON rp.rol_id = ur.rol_id "
             "JOIN permisos p ON p.id = rp.permiso_id "
             "WHERE ur.usuario_id = ? AND p.nombre = ? "
-            "AND p.deleted_at IS NULL",
+            "AND r.deleted_at IS NULL AND p.deleted_at IS NULL",
             (current_user.id, permission_name),
         ).fetchone()
         if row is None:

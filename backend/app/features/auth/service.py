@@ -4,7 +4,9 @@ from app.core.config import settings
 from app.core.database import DbConnection
 from app.core.exceptions import UnauthorizedError
 from app.core.security import create_access_token, hash_password, verify_password
-from app.features.usuarios.repository import UsuarioRepository
+from app.features.asignaciones.repository import AsignacionRepository
+from app.features.roles.repository import RolRepository
+from app.features.usuarios.repository import ADMIN_ROLE, UsuarioRepository
 
 
 class AuthService:
@@ -28,7 +30,7 @@ def bootstrap_first_user(connection) -> bool:
         return False
     if repository.get_by("correo", settings.first_user_email, include_deleted=True):
         return False
-    repository.create(
+    usuario = repository.create(
         {
             "nombre": "Administrador inicial",
             "correo": settings.first_user_email.strip().lower(),
@@ -38,5 +40,9 @@ def bootstrap_first_user(connection) -> bool:
             "is_active": True,
         }
     )
+    # El primer usuario administra todo: la migración 007 ya creó el rol `admin`.
+    rol = RolRepository(connection).get_by("nombre", ADMIN_ROLE)
+    if rol is not None:
+        AsignacionRepository(connection).asignar_rol(usuario["id"], rol["id"])
     connection.commit()
     return True

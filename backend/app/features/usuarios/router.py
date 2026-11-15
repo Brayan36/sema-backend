@@ -22,6 +22,7 @@ from app.features.auth.authorization import (
     can_read_users,
     can_update_users,
 )
+from app.features.auth.dependencies import get_current_user
 from app.features.usuarios.repository import UsuarioRepository
 from app.features.usuarios.schemas import OrdenUsuario, UsuarioCreate, UsuarioOut, UsuarioUpdate
 from app.features.usuarios.service import UsuarioService
@@ -76,6 +77,7 @@ def actualizar(
 @router.delete("/{usuario_id}", status_code=204, dependencies=[Depends(can_delete_users)])
 def eliminar(
     usuario_id: int,
+    actor: UsuarioOut = Depends(get_current_user),
     service: UsuarioService = Depends(get_usuario_service),
 ) -> None:
-    service.eliminar(usuario_id)
+    service.eliminar(usuario_id, actor_id=actor.id)
