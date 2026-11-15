@@ -113,7 +113,8 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 - [x] Confirmar un único rol por usuario para el MVP
 - [x] Crear migraciones separadas para evolucionar `usuarios` y crear `roles`, `permisos`, `usuario_roles` y `rol_permisos`
 - [x] Exponer y validar `genero`, `telefono` e `is_active` en el CRUD de `usuarios`
-- [ ] Crear CRUD de `roles` y `permisos`
+- [x] Crear CRUD de `roles`
+- [ ] Crear CRUD de `permisos`
 - [ ] Crear servicios de asignación `usuario_roles` y `rol_permisos`
 - [ ] Crear seeders y contratos JSON
 - [ ] Integrar autorización en la fase JWT
