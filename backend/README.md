@@ -4,7 +4,7 @@ API REST del proyecto **SEMA** (Sistema Espacial de Monitoreo Agrícola), constr
 
 El backend **persiste datos e históricos** y **controla usuarios**. El análisis de información y las consultas a APIs externas se hacen en el frontend (funciona offline).
 
-> **Estado:** arquitectura base lista. La autenticación JWT está pendiente. El avance por fases está en [../.ai/PLAN.md](../.ai/PLAN.md).
+> **Estado:** autenticación JWT y autorización por roles/permisos implementadas. El avance por fases está en [../.ai/PLAN.md](../.ai/PLAN.md).
 
 ## Qué funciona hoy
 
@@ -15,8 +15,8 @@ El backend **persiste datos e históricos** y **controla usuarios**. El análisi
 | Formato de error uniforme (incluye 500 con `error_id`) | ✅ Disponible |
 | Migraciones automáticas y `manage.py` (`migrate`, `db:seed`, `migrate:fresh`) | ✅ Disponible |
 | `BaseRepository`: CRUD genérico con borrado lógico y `get_by` | ✅ Disponible |
-| Feature `usuarios` (CRUD con paginación, **sin token todavía**) | ✅ Disponible |
-| Login y JWT (`/auth/login`, `/auth/me`, rutas protegidas) | 🔜 Pendiente |
+| Feature `usuarios` (CRUD con paginación y permisos) | ✅ Disponible |
+| Login y JWT (`/auth/login`, `/auth/me`, rutas protegidas) | ✅ Disponible |
 | Entidades de datos e históricos | 🔜 Por definir |
 
 ## Documentación relacionada
@@ -115,6 +115,25 @@ py -m uvicorn app.main:app --reload
 
 Para que otro equipo de la red (por ejemplo, el frontend) llegue a la API, agregar `--host 0.0.0.0` y poner su origen en `CORS_ORIGINS`.
 
+### Autenticación JWT
+
+Solicitar un token mediante formulario OAuth2:
+
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@sema.example&password=Sema2026!"
+```
+
+Enviar el token en las rutas protegidas:
+
+```bash
+curl http://localhost:8000/auth/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+`401` indica que falta o no es válido el token. `403` indica que el usuario está autenticado, pero no tiene el rol o permiso requerido. Swagger permite configurar el token con el botón `Authorize`.
+
 Al arrancar, la app aplica las migraciones pendientes de `migrations/`.
 
 ## Base de datos: migraciones y datos de ejemplo
@@ -187,9 +206,9 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 
 Los endpoints de `/usuarios`, `/roles`, `/permisos` y `/asignaciones` requieren un token Bearer. `/health`, `/auth/login`, `/docs` y `/openapi.json` permanecen públicos.
 
-Los endpoints de `/roles` también son temporalmente públicos mientras se implementa JWT. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
+Los endpoints de `/roles` requieren el rol `admin`. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
 
-Los endpoints de `/permisos` también son temporalmente públicos mientras se implementa JWT. Un permiso tiene `nombre` único entre registros activos y `descripcion` opcional.
+Los endpoints de `/permisos` requieren el rol `admin`. Un permiso tiene `nombre` único entre registros activos y `descripcion` opcional.
 
 Las asignaciones validan que las entidades estén activas y no eliminadas lógicamente. La asignación de un rol reemplaza el rol anterior del usuario; la relación `rol_permisos` es muchos-a-muchos y las asignaciones repetidas son idempotentes.
 
@@ -273,7 +292,7 @@ backend/
 │   ├── core/            # infraestructura compartida (BD, errores, clases base)
 │   ├── features/        # una carpeta por funcionalidad
 │   │   ├── _template/   # molde para entidades nuevas (CRUD completo)
-│   │   ├── auth/        # (pendiente) login y protección de rutas
+│   │   ├── auth/        # login JWT, usuario actual y autorización
 │   │   └── usuarios/    # CRUD de usuarios: el molde para las demás features
 │   └── seeders/         # datos de ejemplo para desarrollo
 ├── migrations/          # scripts SQL numerados
