@@ -42,7 +42,7 @@ Requisitos: **Python 3.12 o superior** y Git.
 - Windows: `py --version`. En Windows se usa **`py`**, no `python`: en muchos equipos `python` abre la Microsoft Store.
 - Linux / macOS: `python3 --version`. En los comandos de este README, `py` se reemplaza por `python3`.
 
-Desde la carpeta `backend/`, elegir **una** opción.
+Desde la carpeta `backend/`, elegir **una** opción. **En Ubuntu 24.04 o superior, usar la [opción C](#opción-c-ubuntu--debian-2404-o-superior).**
 
 ### Opción A: sin entorno virtual
 
@@ -79,6 +79,34 @@ cp .env.example .env
 ```
 
 El entorno se activa en cada terminal nueva. `.venv/` está en `.gitignore`.
+
+### Opción C: Ubuntu / Debian 24.04 o superior
+
+Ubuntu 24.04+ marca su Python como "externally managed" (PEP 668). La opción A falla con:
+
+```
+error: externally-managed-environment
+```
+
+Se resuelve con un entorno virtual, **sin activarlo**: se llama directo al Python del `.venv`. Desde `backend/`:
+
+```bash
+sudo apt install python3-venv     # solo si falta
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Luego, todos los comandos del README se ejecutan con `.venv/bin/python` en lugar de `py`:
+
+```bash
+.venv/bin/python -m uvicorn app.main:app --reload
+.venv/bin/python manage.py migrate:fresh --seed
+.venv/bin/python -m ruff check .
+.venv/bin/python -m pytest -q
+```
+
+**No usar `--break-system-packages`**: puede dañar herramientas de Ubuntu que dependen del Python del sistema.
 
 Después de instalar, editar `.env` con los valores propios.
 
