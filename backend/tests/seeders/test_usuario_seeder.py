@@ -21,8 +21,8 @@ def test_creates_active_users_and_one_deleted(connection):
     repository = UsuarioRepository(connection)
     assert created == len(USUARIOS) + 1
     assert repository.count() == len(USUARIOS)
-    assert repository.exists_by("email", "eliminado@sema.example") is False
-    assert repository.exists_by("email", "eliminado@sema.example", include_deleted=True) is True
+    assert repository.exists_by("correo", "eliminado@sema.example") is False
+    assert repository.exists_by("correo", "eliminado@sema.example", include_deleted=True) is True
 
 
 def test_is_idempotent(connection):
@@ -33,11 +33,11 @@ def test_is_idempotent(connection):
     assert total == len(USUARIOS) + 1
 
 
-@pytest.mark.parametrize("usuario", [*USUARIOS, USUARIO_ELIMINADO], ids=lambda u: u["email"])
+@pytest.mark.parametrize("usuario", [*USUARIOS, USUARIO_ELIMINADO], ids=lambda u: u["correo"])
 def test_emails_pass_api_validation(usuario):
     # EmailStr rechaza dominios de uso especial (.local, .test, localhost).
     # Si un email de ejemplo no pasa, la API fallaría al devolver ese usuario.
-    assert TypeAdapter(EmailStr).validate_python(usuario["email"]) == usuario["email"]
+    assert TypeAdapter(EmailStr).validate_python(usuario["correo"]) == usuario["correo"]
 
 
 def test_passwords_are_hashed(connection):

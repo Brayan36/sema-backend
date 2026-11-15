@@ -17,3 +17,6 @@ data/*.db-shm
 # Caché de herramientas
 .pytest_cache/
 .ruff_cache/
+
+# IDE 
+.visual

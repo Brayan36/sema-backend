@@ -89,6 +89,8 @@ Ese procesamiento ocurre **en el frontend**, por el uso de `localStorage` y el f
 | **Nuevo:** conexión con `DbConnection` | El commit ocurre antes de responder (ver trampa 12) |
 | **Nuevo:** JWT | Lo implementa un compañero. La estructura queda lista (`features/auth/`) |
 | **Nuevo:** Postman | Se adapta después |
+| **Nuevo:** roles por usuario | Para el MVP, cada usuario tiene un único rol. Se conserva `usuario_roles` y `usuario_id` es su clave primaria. |
+| **Nuevo:** estado de cuenta | `is_active` es independiente de `deleted_at`: desactiva una cuenta sin eliminarla lógicamente. |
 
 ## 7. Trampas conocidas
 
@@ -122,7 +124,7 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | 2. Core de datos y seeders | ✅ Completada |
 | 3. Feature `usuarios` | ✅ Completada |
 | 4. Autenticación JWT | ⏭️ Pendiente (la implementa un compañero) |
-| 5. Entidades de datos e históricos | Pendiente (requiere definir entidades) |
+| 5. Gestión de usuarios: modelo físico | 🚧 En curso: migraciones de usuarios, roles, permisos y relaciones creadas; faltan las features CRUD de catálogos y asignaciones |
 | 6. Plantilla y documentación | ✅ `_template/` y README listos |
 
 ### Inventario de lo implementado (`backend/`)
@@ -146,14 +148,14 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | `tests/` | Core, seeders, manage, `main` y la feature `usuarios` |
 | `requirements.txt`, `pyproject.toml`, `.env.example`, `.gitignore`, `README.md` | Configuración y documentación |
 
-**No existe todavía:** autenticación, entidades de datos y colección de Postman.
+**No existe todavía:** autenticación, features CRUD de roles/permisos/asignaciones y colección de Postman.
 
 ## 9. Pendientes abiertos
 
 - **Definir las entidades** (varias, cada una con su caso de uso): campos, relaciones con `usuarios` y qué es el "histórico". Sin esto no se puede empezar la fase 5.
 - ¿Cada usuario ve solo sus propios registros o hay datos compartidos? Si es lo primero, se usa `filters={"user_id": ...}` desde el service.
 - Filtros de listado: ya existen igualdad, lista, rango y búsqueda de texto (ver `ARCHITECTURE.md`, 5.4). Falta ver si alguna entidad necesita algo más (por ejemplo `OR` entre columnas u ordenar por varias columnas).
-- ¿Habrá roles o permisos? (El diseño original los dejaba fuera de alcance.)
+- Definir el catálogo inicial de permisos y las reglas de administración de roles. El modelo del MVP ya usa un único rol por usuario.
 - Coordinar con el compañero de la fase 4: `get_current_user`, login, bootstrap del primer usuario y validación de `JWT_SECRET`.
 - Si el frontend offline necesita ids generados en el cliente o resolución de conflictos, abrir una fase nueva (hoy fuera de alcance).
 - Adaptar la colección de Postman.
@@ -169,3 +171,5 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | 2026-11-14 | Paso 1: estructura y core | Se importó `backend/` y se adaptó (sin NASA ni servicios externos, usuarios de ejemplo renombrados). Agregados: `get_by`, WAL + `busy_timeout`, `DbConnection` (commit antes de responder), `features/auth/` vacía. README y `requirements.txt` podado. Decisiones de Brayan: ids unsigned bigint, CRUD completo por entidad, sin lotes, JWT lo hace un compañero, Postman después. 158 tests, ruff limpio, probado con servidor real |
 | 2026-11-14 | `features/_template/` | Molde de feature con CRUD completo (`Ejemplo`), con README de pasos y migración de ejemplo. Un test lo registra en una app de prueba y recorre el CRUD, y otro verifica que la migración coincide con el repositorio. Se comprobó creando una feature `cultivos` solo con los pasos del README. 171 tests |
 | 2026-11-14 | Commit y filtros de listado | Commit `0922f98` "estructura inicial backend fast-api" (sin push). Después, filtros en el core: `filters` (igualdad, `NULL`, `IN`), `ranges` (inclusivo, fechas a UTC) y `search` (parcial, escapando `%`, `_` y `\`), todo con lista blanca y `?`; `count` con los mismos filtros para que `total` sea exacto. `list_filters` agrega `q`, `created_from` y `created_to` a `usuarios` y a la plantilla. Los tests de escape se comprobaron rompiendo el código a propósito. 228 tests, ruff limpio, servidor real probado |
+| 2026-11-14 | Fase 1: modelo de gestión de usuarios | Se aprobó `correo`, campos opcionales `genero` y `telefono`, `is_active` independiente de `deleted_at`, y un único rol por usuario para el MVP. Las migraciones se separaron por tabla: evolución de `usuarios`, `roles`, `permisos`, `usuario_roles` y `rol_permisos`. JWT sigue fuera de esta etapa. |
+| 2026-11-14 | Fase 2: feature usuarios | El CRUD de `usuarios` expone `genero`, `telefono` e `is_active`. Teléfono se valida como texto de 7 a 25 caracteres con dígitos, espacios, `+`, `-` y paréntesis. Los campos opcionales se pueden limpiar con `null` en PATCH; `is_active` sigue independiente del borrado lógico. |

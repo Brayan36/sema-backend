@@ -24,12 +24,15 @@ class UsuarioService:
         self.repository = repository
 
     def crear(self, datos: UsuarioCreate) -> UsuarioOut:
-        self._validar_email_disponible(datos.email)
+        self._validar_correo_disponible(datos.correo)
         registro = self.repository.create(
             {
                 "nombre": datos.nombre,
-                "email": datos.email,
+                "correo": datos.correo,
                 "password_hash": hash_password(datos.password),  # nunca en texto plano
+                "genero": datos.genero,
+                "telefono": datos.telefono,
+                "is_active": datos.is_active,
             }
         )
         return UsuarioOut.model_validate(registro)
@@ -60,15 +63,15 @@ class UsuarioService:
         return UsuarioOut.model_validate(self._buscar(usuario_id))
 
     def actualizar(self, usuario_id: int, datos: UsuarioUpdate) -> UsuarioOut:
-        # 1. Primero, que exista: si no existe, es 404 aunque el email esté repetido.
+        # 1. Primero, que exista: si no existe, es 404 aunque el correo esté repetido.
         self._buscar(usuario_id)
 
         # 2. Solo los campos que llegaron en el JSON (exclude_unset).
         cambios = datos.model_dump(exclude_unset=True)
 
-        if "email" in cambios:
-            # exclude_id: conservar su propio email no es un conflicto.
-            self._validar_email_disponible(cambios["email"], excluir_id=usuario_id)
+        if "correo" in cambios:
+            # exclude_id: conservar su propio correo no es un conflicto.
+            self._validar_correo_disponible(cambios["correo"], excluir_id=usuario_id)
         if "password" in cambios:
             cambios["password_hash"] = hash_password(cambios.pop("password"))
 
@@ -90,6 +93,6 @@ class UsuarioService:
             raise NotFoundError(f"Usuario {usuario_id} no existe")
         return registro
 
-    def _validar_email_disponible(self, email: str, excluir_id: int | None = None) -> None:
-        if self.repository.exists_by("email", email, exclude_id=excluir_id):
-            raise ConflictError(f"El email {email} ya está registrado")
+    def _validar_correo_disponible(self, correo: str, excluir_id: int | None = None) -> None:
+        if self.repository.exists_by("correo", correo, exclude_id=excluir_id):
+            raise ConflictError(f"El correo {correo} ya está registrado")

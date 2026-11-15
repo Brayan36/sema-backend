@@ -11,7 +11,7 @@
 | `core/security.py`: JWT, y `features/auth/` | 📝 Diseño (fase 4, la implementa un compañero) |
 | `manage.py` y seeders | ✅ Implementado |
 | Feature `usuarios` | ✅ Implementada (todavía sin protección de token) |
-| Entidades de datos e históricos | 📝 Por definir (fase 5) |
+| Gestión de usuarios: modelo físico | 🚧 Migraciones creadas; faltan features CRUD de roles, permisos y asignaciones |
 | `features/_template/` | ✅ Molde de feature con CRUD completo y probado (no registrado en `main.py`) |
 
 Lo implementado vive en `backend/`: **el código gana sobre este documento** y el documento se corrige. Las secciones de diseño (autenticación) son guía y pueden ajustarse respetando las reglas.
@@ -167,7 +167,7 @@ router = APIRouter(prefix="/usuarios", tags=["usuarios"], dependencies=[Depends(
 
 **Primer usuario:** al arrancar, si no hay usuarios activos y existen `FIRST_USER_EMAIL` y `FIRST_USER_PASSWORD`, se crea ese usuario.
 
-**Reglas:** los schemas de salida nunca incluyen `password_hash`; el login siempre responde "Credenciales inválidas"; `JWT_SECRET` solo en `.env` y, con `ENVIRONMENT=production`, la app no arranca si es el de ejemplo o tiene menos de 32 caracteres. Fuera de alcance por ahora: refresh tokens, roles y permisos, recuperación de contraseña *(por definir)*.
+**Reglas:** los schemas de salida nunca incluyen `password_hash`; el login siempre responde "Credenciales inválidas"; `JWT_SECRET` solo en `.env` y, con `ENVIRONMENT=production`, la app no arranca si es el de ejemplo o tiene menos de 32 caracteres. Fuera de alcance por ahora: refresh tokens y recuperación de contraseña *(por definir)*. Roles y permisos se modelan en esta etapa, pero su aplicación mediante JWT se implementa después.
 
 **CORS:** `allow_origins=settings.cors_origins` (nunca `*` con credenciales), métodos `GET, POST, PATCH, DELETE, OPTIONS` y headers `Authorization, Content-Type`. En desarrollo: `http://localhost:5173`. En el evento se agrega el origen real **solo en el `.env`**.
 
@@ -234,4 +234,4 @@ Igual que [PLAN.md](PLAN.md), sección 7, más: la feature no importa el reposit
 
 ## 13. Fuera de alcance
 
-Análisis de datos, APIs externas, ORM, async en la BD, refresh tokens, roles y permisos, Docker, despliegue en la nube, DDD, CQRS, `BaseService` genérico.
+Análisis de datos, APIs externas, ORM, async en la BD, refresh tokens, Docker, despliegue en la nube, DDD, CQRS, `BaseService` genérico.

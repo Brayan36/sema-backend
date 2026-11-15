@@ -6,14 +6,14 @@ from app.features.usuarios.repository import UsuarioRepository
 DEMO_PASSWORD = "Sema2026!"  # noqa: S105
 
 USUARIOS = [
-    {"nombre": "Admin SEMA", "email": "admin@sema.example"},
-    {"nombre": "Equipo Backend", "email": "backend@sema.example"},
-    {"nombre": "Usuario Demo", "email": "demo@sema.example"},
-    {"nombre": "Equipo Frontend", "email": "frontend@sema.example"},
+    {"nombre": "Admin SEMA", "correo": "admin@sema.example"},
+    {"nombre": "Equipo Backend", "correo": "backend@sema.example"},
+    {"nombre": "Usuario Demo", "correo": "demo@sema.example"},
+    {"nombre": "Equipo Frontend", "correo": "frontend@sema.example"},
 ]
 
 # Se crea y luego se elimina, para ver el borrado lógico en el visor SQL.
-USUARIO_ELIMINADO = {"nombre": "Usuario Eliminado", "email": "eliminado@sema.example"}
+USUARIO_ELIMINADO = {"nombre": "Usuario Eliminado", "correo": "eliminado@sema.example"}
 
 
 class UsuarioSeeder(BaseSeeder):
@@ -23,11 +23,11 @@ class UsuarioSeeder(BaseSeeder):
         created = 0
 
         for usuario in USUARIOS:
-            if not repository.exists_by("email", usuario["email"], include_deleted=True):
+            if not repository.exists_by("correo", usuario["correo"], include_deleted=True):
                 repository.create({**usuario, "password_hash": password_hash})
                 created += 1
 
-        if not repository.exists_by("email", USUARIO_ELIMINADO["email"], include_deleted=True):
+        if not repository.exists_by("correo", USUARIO_ELIMINADO["correo"], include_deleted=True):
             registro = repository.create({**USUARIO_ELIMINADO, "password_hash": password_hash})
             repository.soft_delete(registro["id"])
             created += 1

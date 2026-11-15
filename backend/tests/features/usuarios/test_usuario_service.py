@@ -23,8 +23,8 @@ def service(repository):
     return UsuarioService(repository)
 
 
-def nuevo(nombre="Ana Pérez", email="ana@sema.example", password="clave-segura-1"):
-    return UsuarioCreate(nombre=nombre, email=email, password=password)
+def nuevo(nombre="Ana Pérez", correo="ana@sema.example", password="clave-segura-1"):
+    return UsuarioCreate(nombre=nombre, correo=correo, password=password)
 
 
 # ---------- crear ----------
@@ -38,20 +38,39 @@ def test_crear_guarda_password_con_hash(service, repository):
     assert verify_password("clave-segura-1", registro["password_hash"])
 
 
-def test_crear_normaliza_email(service):
-    usuario = service.crear(nuevo(email="  Ana@SEMA.example "))
+def test_crear_normaliza_correo(service):
+    usuario = service.crear(nuevo(correo="  Ana@SEMA.example "))
 
-    assert usuario.email == "ana@sema.example"
+    assert usuario.correo == "ana@sema.example"
 
 
-def test_crear_rechaza_email_duplicado_aunque_cambien_mayusculas(service):
-    service.crear(nuevo(email="ana@sema.example"))
+def test_crear_guarda_datos_opcionales_y_estado(service):
+    usuario = service.crear(
+        UsuarioCreate(
+            nombre="Ana Pérez",
+            correo="ana@sema.example",
+            password="clave-segura-1",
+            genero="Femenino",
+            telefono="+57 300 123 4567",
+            is_active=False,
+        )
+    )
+
+    assert (usuario.genero, usuario.telefono, usuario.is_active) == (
+        "Femenino",
+        "+57 300 123 4567",
+        False,
+    )
+
+
+def test_crear_rechaza_correo_duplicado_aunque_cambien_mayusculas(service):
+    service.crear(nuevo(correo="ana@sema.example"))
 
     with pytest.raises(ConflictError):
-        service.crear(nuevo(email="ANA@sema.example"))
+        service.crear(nuevo(correo="ANA@sema.example"))
 
 
-def test_crear_permite_email_de_usuario_eliminado(service):
+def test_crear_permite_correo_de_usuario_eliminado(service):
     eliminado = service.crear(nuevo())
     service.eliminar(eliminado.id)
 
@@ -64,8 +83,8 @@ def test_crear_permite_email_de_usuario_eliminado(service):
 
 
 def test_listar_excluye_eliminados_y_cuenta_solo_activos(service):
-    activo = service.crear(nuevo(email="activo@sema.example"))
-    eliminado = service.crear(nuevo(email="eliminado@sema.example"))
+    activo = service.crear(nuevo(correo="activo@sema.example"))
+    eliminado = service.crear(nuevo(correo="eliminado@sema.example"))
     service.eliminar(eliminado.id)
 
     pagina = service.listar()
@@ -76,7 +95,7 @@ def test_listar_excluye_eliminados_y_cuenta_solo_activos(service):
 
 def test_listar_pagina_y_ordena(service):
     for nombre in ("Carla", "Ana", "Beto"):
-        service.crear(nuevo(nombre=nombre, email=f"{nombre.lower()}@sema.example"))
+        service.crear(nuevo(nombre=nombre, correo=f"{nombre.lower()}@sema.example"))
 
     pagina = service.listar(limit=2, offset=0, order_by="nombre", direction="desc")
 
@@ -104,12 +123,29 @@ def test_obtener_eliminado_lanza_not_found(service):
 
 
 def test_actualizar_cambia_solo_los_campos_enviados(service):
-    usuario = service.crear(nuevo(nombre="Ana", email="ana@sema.example"))
+    usuario = service.crear(nuevo(nombre="Ana", correo="ana@sema.example"))
 
     actualizado = service.actualizar(usuario.id, UsuarioUpdate(nombre="Ana María"))
 
     assert actualizado.nombre == "Ana María"
-    assert actualizado.email == "ana@sema.example"
+    assert actualizado.correo == "ana@sema.example"
+
+
+def test_actualizar_permite_limpiar_campos_opcionales(service):
+    usuario = service.crear(
+        UsuarioCreate(
+            nombre="Ana Pérez",
+            correo="ana@sema.example",
+            password="clave-segura-1",
+            genero="Femenino",
+            telefono="300 123 4567",
+        )
+    )
+
+    actualizado = service.actualizar(usuario.id, UsuarioUpdate(genero=None, telefono=None))
+
+    assert actualizado.genero is None
+    assert actualizado.telefono is None
 
 
 def test_actualizar_password_guarda_hash_nuevo(service, repository):
@@ -122,27 +158,27 @@ def test_actualizar_password_guarda_hash_nuevo(service, repository):
     assert not verify_password("clave-vieja-1", registro["password_hash"])
 
 
-def test_actualizar_a_email_ocupado_lanza_conflict(service):
-    service.crear(nuevo(email="ocupado@sema.example"))
-    usuario = service.crear(nuevo(email="libre@sema.example"))
+def test_actualizar_a_correo_ocupado_lanza_conflict(service):
+    service.crear(nuevo(correo="ocupado@sema.example"))
+    usuario = service.crear(nuevo(correo="libre@sema.example"))
 
     with pytest.raises(ConflictError):
-        service.actualizar(usuario.id, UsuarioUpdate(email="ocupado@sema.example"))
+        service.actualizar(usuario.id, UsuarioUpdate(correo="ocupado@sema.example"))
 
 
-def test_actualizar_con_su_propio_email_no_es_conflicto(service):
-    usuario = service.crear(nuevo(email="ana@sema.example"))
+def test_actualizar_con_su_propio_correo_no_es_conflicto(service):
+    usuario = service.crear(nuevo(correo="ana@sema.example"))
 
-    actualizado = service.actualizar(usuario.id, UsuarioUpdate(email="ANA@sema.example"))
+    actualizado = service.actualizar(usuario.id, UsuarioUpdate(correo="ANA@sema.example"))
 
-    assert actualizado.email == "ana@sema.example"
+    assert actualizado.correo == "ana@sema.example"
 
 
 def test_actualizar_inexistente_es_not_found_antes_que_conflict(service):
-    service.crear(nuevo(email="ocupado@sema.example"))
+    service.crear(nuevo(correo="ocupado@sema.example"))
 
     with pytest.raises(NotFoundError):
-        service.actualizar(999, UsuarioUpdate(email="ocupado@sema.example"))
+        service.actualizar(999, UsuarioUpdate(correo="ocupado@sema.example"))
 
 
 # ---------- eliminar ----------
