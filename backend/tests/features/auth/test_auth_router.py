@@ -38,6 +38,28 @@ def test_health_is_public_and_users_are_protected(auth_client):
     assert auth_client.get("/usuarios").status_code == 401
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/usuarios",
+        "/roles",
+        "/permisos",
+        "/asignaciones/usuarios/1/rol",
+        "/asignaciones/roles/1/usuarios",
+        "/asignaciones/roles/1/permisos",
+        "/asignaciones/permisos/1/roles",
+        "/auth/me",
+    ],
+)
+def test_business_routes_require_bearer_token(auth_client, path):
+    assert auth_client.get(path).status_code == 401
+
+
+def test_public_documentation_routes_remain_available(auth_client):
+    assert auth_client.get("/docs").status_code == 200
+    assert auth_client.get("/openapi.json").status_code == 200
+
+
 def test_login_returns_token_and_me_returns_user(auth_client):
     response = auth_client.post(
         "/auth/login",
