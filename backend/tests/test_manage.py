@@ -48,6 +48,8 @@ def test_db_seed_with_unknown_class_fails():
 def test_migrate_fresh_with_seed_rebuilds_database():
     manage.main(["db:seed"])
     connection = connect()
+    connection.execute("DELETE FROM usuario_roles")
+    connection.execute("DELETE FROM rol_permisos")
     connection.execute("DELETE FROM usuarios")
     connection.commit()
     connection.close()
