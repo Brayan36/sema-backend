@@ -171,10 +171,27 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 | `GET` | `/roles/{id}` | Obtener rol |
 | `PATCH` | `/roles/{id}` | Actualizar rol (parcial) |
 | `DELETE` | `/roles/{id}` | Eliminar rol (borrado lógico) |
+| `POST` | `/permisos` | Crear permiso |
+| `GET` | `/permisos?limit=&offset=&order_by=&direction=&q=&created_from=&created_to=` | Listar permisos activos (paginado, ordenado y filtrado) |
+| `GET` | `/permisos/{id}` | Obtener permiso |
+| `PATCH` | `/permisos/{id}` | Actualizar permiso (parcial) |
+| `DELETE` | `/permisos/{id}` | Eliminar permiso (borrado lógico) |
+| `PUT` | `/asignaciones/usuarios/{id}/rol` | Asignar o reemplazar el único rol del usuario |
+| `GET` | `/asignaciones/usuarios/{id}/rol` | Consultar el rol del usuario |
+| `DELETE` | `/asignaciones/usuarios/{id}/rol` | Retirar el rol del usuario |
+| `GET` | `/asignaciones/roles/{id}/usuarios` | Listar usuarios con el rol |
+| `PUT` | `/asignaciones/roles/{id}/permisos/{permiso_id}` | Asignar un permiso a un rol |
+| `GET` | `/asignaciones/roles/{id}/permisos` | Listar permisos del rol |
+| `DELETE` | `/asignaciones/roles/{id}/permisos/{permiso_id}` | Retirar un permiso del rol |
+| `GET` | `/asignaciones/permisos/{id}/roles` | Listar roles con el permiso |
 
 **Hoy los endpoints de `/usuarios` funcionan sin token.** La protección llega con la fase de autenticación (`/auth/login`, `/auth/me` y `get_current_user`).
 
 Los endpoints de `/roles` también son temporalmente públicos mientras se implementa JWT. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
+
+Los endpoints de `/permisos` también son temporalmente públicos mientras se implementa JWT. Un permiso tiene `nombre` único entre registros activos y `descripcion` opcional.
+
+Las asignaciones validan que las entidades estén activas y no eliminadas lógicamente. La asignación de un rol reemplaza el rol anterior del usuario; la relación `rol_permisos` es muchos-a-muchos y las asignaciones repetidas son idempotentes.
 
 ### Listar con paginación, orden y filtros
 

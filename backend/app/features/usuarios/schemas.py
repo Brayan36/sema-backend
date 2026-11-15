@@ -89,9 +89,7 @@ class UsuarioUpdate(BaseModel):
         # intentaría guardar NULL en una columna NOT NULL (y daría un 500).
         requeridos = {"nombre", "correo", "password", "is_active"}
         nulos = sorted(
-            campo
-            for campo in self.model_fields_set & requeridos
-            if getattr(self, campo) is None
+            campo for campo in self.model_fields_set & requeridos if getattr(self, campo) is None
         )
         if nulos:
             raise ValueError(f"Estos campos no pueden ser null: {', '.join(nulos)}")
