@@ -1,0 +1,12 @@
+{
+  "resource": "usuarios",
+  "fields": {
+    "nombre": {"type": "string", "required": true},
+    "correo": {"type": "email", "required": true},
+    "password": {"type": "string", "required_on_create": true, "sensitive": true},
+    "genero": {"type": "string|null", "required": false},
+    "telefono": {"type": "string|null", "required": false},
+    "is_active": {"type": "boolean", "default": true}
+  },
+  "output_excludes": ["password", "password_hash", "deleted_at"]
+}
