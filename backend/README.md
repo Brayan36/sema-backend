@@ -189,13 +189,15 @@ Todas las tablas usan `id INTEGER PRIMARY KEY AUTOINCREMENT`. En SQLite es un en
 
 Todos usan la contraseña **`Sema2026!`** (solo para desarrollo):
 
-| Correo | Estado |
-|---|---|
-| `admin@sema.example` | Activo |
-| `backend@sema.example` | Activo |
-| `demo@sema.example` | Activo |
-| `frontend@sema.example` | Activo |
-| `eliminado@sema.example` | **Eliminado** (tiene `deleted_at`), para ver el borrado lógico |
+| Correo | Rol | Estado |
+|---|---|---|
+| `admin@sema.example` | `admin` (el único administrador) | Activo |
+| `backend@sema.example` | `agricultor` | Activo |
+| `frontend@sema.example` | `agricultor` | Activo |
+| `demo@sema.example` | `agricultor` | Activo |
+| `eliminado@sema.example` | sin rol | **Eliminado** (tiene `deleted_at`), para ver el borrado lógico |
+
+**Roles y permisos base:** los crea la migración `007_seed_base_access.sql`, así que existen en cualquier BD, sembrada o no. `admin` tiene todos los permisos (`usuarios.crear`, `usuarios.consultar`, `usuarios.actualizar`, `usuarios.eliminar`, `historicos.consultar`) y administra roles, permisos y asignaciones; `agricultor` consulta usuarios e históricos. El primer usuario que crea el arranque (`FIRST_USER_*`) recibe el rol `admin`. Si tu BD ya estaba sembrada antes, corre `manage.py db:seed` para asignar `agricultor` a `backend` y `frontend`.
 
 ### Ver la BD en un visor SQL
 
@@ -240,7 +242,7 @@ Los endpoints de `/permisos` requieren el rol `admin`. Un permiso tiene `nombre`
 
 Las asignaciones validan que las entidades estén activas y no eliminadas lógicamente. La asignación de un rol reemplaza el rol anterior del usuario; la relación `rol_permisos` es muchos-a-muchos y las asignaciones repetidas son idempotentes.
 
-Los contratos JSON versionables para frontend están en `backend/data/contracts/`. El comando `py manage.py db:seed` ejecuta los seeders en orden: usuarios, roles, permisos y asignaciones.
+Los contratos JSON versionables para frontend están en `backend/data/contracts/`. El comando `py manage.py db:seed` ejecuta los seeders en orden: usuarios y asignación de roles.
 
 ### Listar con paginación, orden y filtros
 
@@ -280,6 +282,7 @@ Los filtros se combinan con AND, y `total` cuenta **solo lo que cumple los filtr
 - `genero`: opcional; de 1 a 50 caracteres si se envía.
 - `telefono`: opcional; de 7 a 25 caracteres. Solo admite dígitos, espacios, `+`, `-` y paréntesis.
 - `is_active`: booleano; indica si la cuenta está activa y es independiente de `deleted_at`.
+- **Eliminar (`DELETE /usuarios/{id}`):** nadie puede eliminar su propia cuenta, y nunca se puede eliminar al único administrador activo: en ambos casos responde **409**. Un admin desactivado o eliminado no cuenta como admin restante.
 - `PATCH` cambia solo los campos enviados. `genero` y `telefono` aceptan `null` para borrar su valor; los demás campos no aceptan `null` y un campo desconocido responde **422**.
 - **Fechas:** `created_at` y `updated_at` salen en **UTC**, ISO 8601 (`"2026-11-14T19:09:45Z"`). Mostrarlas en hora local es trabajo del frontend:
   ```js
@@ -310,6 +313,10 @@ Los errores internos (500) nunca muestran detalles. Traen un `error_id` que tamb
 { "error": { "code": "INTERNAL_ERROR", "message": "Error interno", "error_id": "74adeaa35cb2" } }
 ```
 **Si el frontend ve un 500:** copiar el `error_id` y buscarlo en la consola donde corre `uvicorn`.
+
+## Probar con Postman
+
+En [`data/collections/`](data/collections/README.md) hay una colección lista para importar (97 requests, con tests automáticos) y dos environments. Cubre login, usuarios, roles, permisos, asignaciones y la autorización por rol y permiso. Necesita la BD sembrada (`manage.py migrate:fresh --seed`). Instrucciones en su [README](data/collections/README.md).
 
 ## Estructura
 

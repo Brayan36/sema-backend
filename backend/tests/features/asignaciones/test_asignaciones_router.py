@@ -10,7 +10,7 @@ def datos(client):
         json={"nombre": "Ana Pérez", "correo": "ana@sema.example", "password": "clave-segura-1"},
     ).json()
     rol = client.post("/roles", json={"nombre": "Administrador"}).json()
-    permiso = client.post("/permisos", json={"nombre": "usuarios.crear"}).json()
+    permiso = client.post("/permisos", json={"nombre": "cultivos.crear"}).json()
     return usuario, rol, permiso
 
 

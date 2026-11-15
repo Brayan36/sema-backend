@@ -34,6 +34,32 @@ def auth_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
         yield client
 
 
+def assign_role(role_name: str, usuario_id: int = 1) -> None:
+    """Asigna uno de los roles base (los crea la migración 007) al usuario."""
+    connection = connect(settings.db_path)
+    connection.execute(
+        "INSERT INTO usuario_roles (usuario_id, rol_id) "
+        "SELECT ?, id FROM roles WHERE nombre = ? AND deleted_at IS NULL",
+        (usuario_id, role_name),
+    )
+    connection.commit()
+    connection.close()
+
+
+def soft_delete_role(role_name: str) -> None:
+    connection = connect(settings.db_path)
+    connection.execute(
+        "UPDATE roles SET deleted_at = ? WHERE nombre = ?", ("2026-11-15T00:00:00Z", role_name)
+    )
+    connection.commit()
+    connection.close()
+
+
+def login(client, correo="ana@sema.example", password="clave-segura-1") -> str:
+    response = client.post("/auth/login", data={"username": correo, "password": password})
+    return response.json()["access_token"]
+
+
 def test_health_is_public_and_users_are_protected(auth_client):
     assert auth_client.get("/health").status_code == 200
     assert auth_client.get("/usuarios").status_code == 401
@@ -73,17 +99,8 @@ def test_authenticated_user_without_role_cannot_manage_roles(auth_client):
 
 
 def test_admin_role_can_manage_roles(auth_client):
-    connection = connect(settings.db_path)
-    connection.execute(
-        "INSERT INTO roles (nombre, created_at, updated_at) VALUES (?, ?, ?)",
-        ("admin", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
-    )
-    connection.execute("INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 1)")
-    connection.commit()
-    connection.close()
-    token = auth_client.post(
-        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
-    ).json()["access_token"]
+    assign_role("admin")
+    token = login(auth_client)
 
     response = auth_client.get("/roles", headers={"Authorization": f"Bearer {token}"})
 
@@ -91,26 +108,19 @@ def test_admin_role_can_manage_roles(auth_client):
 
 
 def test_permission_controls_user_read_access(auth_client):
-    connection = connect(settings.db_path)
-    connection.execute(
-        "INSERT INTO roles (nombre, created_at, updated_at) VALUES (?, ?, ?)",
-        ("agricultor", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
-    )
-    connection.execute(
-        "INSERT INTO permisos (nombre, created_at, updated_at) VALUES (?, ?, ?)",
-        ("usuarios.consultar", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
-    )
-    connection.execute("INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 1)")
-    connection.execute("INSERT INTO rol_permisos (rol_id, permiso_id) VALUES (1, 1)")
-    connection.commit()
-    connection.close()
-    token = auth_client.post(
-        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
-    ).json()["access_token"]
+    assign_role("agricultor")  # el rol base tiene usuarios.consultar
+    token = login(auth_client)
+    headers = {"Authorization": f"Bearer {token}"}
 
-    response = auth_client.get("/usuarios", headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
+    assert auth_client.get("/usuarios", headers=headers).status_code == 200
+    assert (
+        auth_client.post(
+            "/usuarios",
+            headers=headers,
+            json={"nombre": "Otra", "correo": "otra@sema.example", "password": "clave-segura-1"},
+        ).status_code
+        == 403
+    )
 
 
 def test_expired_token_is_rejected(auth_client):
@@ -135,23 +145,31 @@ def test_tampered_token_is_rejected(auth_client):
 
 
 def test_deleted_admin_role_revokes_administrative_access(auth_client):
-    connection = connect(settings.db_path)
-    connection.execute(
-        "INSERT INTO roles (nombre, created_at, updated_at) VALUES (?, ?, ?)",
-        ("admin", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
-    )
-    connection.execute("INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 1)")
-    connection.commit()
-    token = auth_client.post(
-        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
-    ).json()["access_token"]
-    connection.execute("UPDATE roles SET deleted_at = ? WHERE id = 1", ("2026-11-15T00:00:00Z",))
-    connection.commit()
-    connection.close()
+    assign_role("admin")
+    token = login(auth_client)
+    soft_delete_role("admin")
 
     response = auth_client.get("/roles", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 403
+
+
+def test_deleted_role_revokes_its_permissions(auth_client):
+    assign_role("agricultor")
+    token = login(auth_client)
+    headers = {"Authorization": f"Bearer {token}"}
+    assert auth_client.get("/usuarios", headers=headers).status_code == 200
+
+    soft_delete_role("agricultor")
+
+    assert auth_client.get("/usuarios", headers=headers).status_code == 403
+
+
+def test_missing_token_message_is_in_spanish(auth_client):
+    response = auth_client.get("/usuarios")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["message"] == "No autenticado"
 
 
 def test_bootstrap_creates_first_user(tmp_path, monkeypatch):
@@ -167,6 +185,11 @@ def test_bootstrap_creates_first_user(tmp_path, monkeypatch):
     assert bootstrap_first_user(connection) is True
     assert bootstrap_first_user(connection) is False
     assert connection.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 1
+    rol = connection.execute(
+        "SELECT r.nombre FROM usuario_roles ur JOIN roles r ON r.id = ur.rol_id "
+        "WHERE ur.usuario_id = 1"
+    ).fetchone()
+    assert rol["nombre"] == "admin"
     connection.close()
 
 

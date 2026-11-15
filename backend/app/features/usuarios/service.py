@@ -80,8 +80,15 @@ class UsuarioService:
             raise NotFoundError(f"Usuario {usuario_id} no existe")
         return UsuarioOut.model_validate(registro)
 
-    def eliminar(self, usuario_id: int) -> None:
-        # Borrado lógico: el registro queda en la BD con deleted_at.
+    def eliminar(self, usuario_id: int, actor_id: int | None = None) -> None:
+        """Borrado lógico (`deleted_at`). `actor_id` es quien hace la petición."""
+        if actor_id == usuario_id:
+            raise ConflictError("No puede eliminar su propia cuenta")
+        # Siempre debe quedar al menos un admin que pueda iniciar sesión.
+        if self.repository.es_admin(usuario_id) and not self.repository.contar_admins_activos(
+            excluir_id=usuario_id
+        ):
+            raise ConflictError("No se puede eliminar al único administrador")
         if not self.repository.soft_delete(usuario_id):
             raise NotFoundError(f"Usuario {usuario_id} no existe")
 

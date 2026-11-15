@@ -190,3 +190,99 @@ def test_eliminar_dos_veces_lanza_not_found(service):
 
     with pytest.raises(NotFoundError):
         service.eliminar(usuario.id)
+
+
+# ---------- eliminar: siempre debe quedar un admin ----------
+
+
+def hacer_admin(repository, usuario_id, activo=True):
+    repository.connection.execute(
+        "INSERT INTO usuario_roles (usuario_id, rol_id) "
+        "SELECT ?, id FROM roles WHERE nombre = 'admin' AND deleted_at IS NULL",
+        (usuario_id,),
+    )
+    if not activo:
+        repository.connection.execute(
+            "UPDATE usuarios SET is_active = 0 WHERE id = ?", (usuario_id,)
+        )
+
+
+def test_eliminar_su_propia_cuenta_no_se_permite(service):
+    ana = service.crear(nuevo())
+
+    with pytest.raises(ConflictError, match="propia cuenta"):
+        service.eliminar(ana.id, actor_id=ana.id)
+
+    assert service.obtener(ana.id).id == ana.id
+
+
+def test_eliminar_su_propia_cuenta_no_se_permite_aunque_haya_otro_admin(service, repository):
+    ana = service.crear(nuevo())
+    beto = service.crear(nuevo("Beto", "beto@sema.example"))
+    hacer_admin(repository, ana.id)
+    hacer_admin(repository, beto.id)
+
+    with pytest.raises(ConflictError, match="propia cuenta"):
+        service.eliminar(ana.id, actor_id=ana.id)
+
+
+def test_eliminar_al_unico_admin_no_se_permite(service, repository):
+    admin = service.crear(nuevo())
+    otro = service.crear(nuevo("Beto", "beto@sema.example"))
+    hacer_admin(repository, admin.id)
+
+    with pytest.raises(ConflictError, match="único administrador"):
+        service.eliminar(admin.id, actor_id=otro.id)
+
+    assert service.obtener(admin.id).id == admin.id
+
+
+def test_eliminar_un_admin_si_queda_otro_admin_activo(service, repository):
+    uno = service.crear(nuevo())
+    dos = service.crear(nuevo("Beto", "beto@sema.example"))
+    hacer_admin(repository, uno.id)
+    hacer_admin(repository, dos.id)
+
+    service.eliminar(uno.id, actor_id=dos.id)
+
+    with pytest.raises(NotFoundError):
+        service.obtener(uno.id)
+
+
+def test_un_admin_desactivado_no_cuenta_como_admin_restante(service, repository):
+    activo = service.crear(nuevo())
+    inactivo = service.crear(nuevo("Beto", "beto@sema.example"))
+    hacer_admin(repository, activo.id)
+    hacer_admin(repository, inactivo.id, activo=False)
+    otro = service.crear(nuevo("Carla", "carla@sema.example"))
+
+    with pytest.raises(ConflictError, match="único administrador"):
+        service.eliminar(activo.id, actor_id=otro.id)
+
+
+def test_un_admin_eliminado_no_cuenta_como_admin_restante(service, repository):
+    uno = service.crear(nuevo())
+    dos = service.crear(nuevo("Beto", "beto@sema.example"))
+    hacer_admin(repository, uno.id)
+    hacer_admin(repository, dos.id)
+    otro = service.crear(nuevo("Carla", "carla@sema.example"))
+    service.eliminar(dos.id, actor_id=otro.id)  # queda uno solo
+
+    with pytest.raises(ConflictError, match="único administrador"):
+        service.eliminar(uno.id, actor_id=otro.id)
+
+
+def test_eliminar_usuario_sin_rol_admin_no_se_ve_afectado(service, repository):
+    admin = service.crear(nuevo())
+    hacer_admin(repository, admin.id)
+    agricultor = service.crear(nuevo("Beto", "beto@sema.example"))
+
+    service.eliminar(agricultor.id, actor_id=admin.id)
+
+    with pytest.raises(NotFoundError):
+        service.obtener(agricultor.id)
+
+
+def test_eliminar_inexistente_sigue_respondiendo_no_encontrado(service):
+    with pytest.raises(NotFoundError):
+        service.eliminar(999, actor_id=1)
