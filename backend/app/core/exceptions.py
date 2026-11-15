@@ -29,6 +29,12 @@ class UnauthorizedError(AppError):
     headers = {"WWW-Authenticate": "Bearer"}
 
 
+class ForbiddenError(AppError):
+    status_code = 403
+    code = "FORBIDDEN"
+    default_message = "No tiene permisos para realizar esta operación"
+
+
 class NotFoundError(AppError):
     status_code = 404
     code = "NOT_FOUND"

@@ -4,7 +4,7 @@ API REST del proyecto **SEMA** (Sistema Espacial de Monitoreo Agrícola), constr
 
 El backend **persiste datos e históricos** y **controla usuarios**. El análisis de información y las consultas a APIs externas se hacen en el frontend (funciona offline).
 
-> **Estado:** arquitectura base lista. La autenticación JWT está pendiente. El avance por fases está en [../.ai/PLAN.md](../.ai/PLAN.md).
+> **Estado:** autenticación JWT y autorización por roles/permisos implementadas. El avance por fases está en [../.ai/PLAN.md](../.ai/PLAN.md).
 
 ## Qué funciona hoy
 
@@ -15,8 +15,8 @@ El backend **persiste datos e históricos** y **controla usuarios**. El análisi
 | Formato de error uniforme (incluye 500 con `error_id`) | ✅ Disponible |
 | Migraciones automáticas y `manage.py` (`migrate`, `db:seed`, `migrate:fresh`) | ✅ Disponible |
 | `BaseRepository`: CRUD genérico con borrado lógico y `get_by` | ✅ Disponible |
-| Feature `usuarios` (CRUD con paginación, **sin token todavía**) | ✅ Disponible |
-| Login y JWT (`/auth/login`, `/auth/me`, rutas protegidas) | 🔜 Pendiente |
+| Feature `usuarios` (CRUD con paginación y permisos) | ✅ Disponible |
+| Login y JWT (`/auth/login`, `/auth/me`, rutas protegidas) | ✅ Disponible |
 | Entidades de datos e históricos | 🔜 Por definir |
 
 ## Documentación relacionada
@@ -42,7 +42,7 @@ Requisitos: **Python 3.12 o superior** y Git.
 - Windows: `py --version`. En Windows se usa **`py`**, no `python`: en muchos equipos `python` abre la Microsoft Store.
 - Linux / macOS: `python3 --version`. En los comandos de este README, `py` se reemplaza por `python3`.
 
-Desde la carpeta `backend/`, elegir **una** opción.
+Desde la carpeta `backend/`, elegir **una** opción. **En Ubuntu 24.04 o superior, usar la [opción C](#opción-c-ubuntu--debian-2404-o-superior).**
 
 ### Opción A: sin entorno virtual
 
@@ -80,6 +80,34 @@ cp .env.example .env
 
 El entorno se activa en cada terminal nueva. `.venv/` está en `.gitignore`.
 
+### Opción C: Ubuntu / Debian 24.04 o superior
+
+Ubuntu 24.04+ marca su Python como "externally managed" (PEP 668). La opción A falla con:
+
+```
+error: externally-managed-environment
+```
+
+Se resuelve con un entorno virtual, **sin activarlo**: se llama directo al Python del `.venv`. Desde `backend/`:
+
+```bash
+sudo apt install python3-venv     # solo si falta
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Luego, todos los comandos del README se ejecutan con `.venv/bin/python` en lugar de `py`:
+
+```bash
+.venv/bin/python -m uvicorn app.main:app --reload
+.venv/bin/python manage.py migrate:fresh --seed
+.venv/bin/python -m ruff check .
+.venv/bin/python -m pytest -q
+```
+
+**No usar `--break-system-packages`**: puede dañar herramientas de Ubuntu que dependen del Python del sistema.
+
 Después de instalar, editar `.env` con los valores propios.
 
 ## Variables de entorno
@@ -114,6 +142,25 @@ py -m uvicorn app.main:app --reload
 | http://localhost:8000/redoc | Documentación alternativa |
 
 Para que otro equipo de la red (por ejemplo, el frontend) llegue a la API, agregar `--host 0.0.0.0` y poner su origen en `CORS_ORIGINS`.
+
+### Autenticación JWT
+
+Solicitar un token mediante formulario OAuth2:
+
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin@sema.example&password=Sema2026!"
+```
+
+Enviar el token en las rutas protegidas:
+
+```bash
+curl http://localhost:8000/auth/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+`401` indica que falta o no es válido el token. `403` indica que el usuario está autenticado, pero no tiene el rol o permiso requerido. Swagger permite configurar el token con el botón `Authorize`.
 
 Al arrancar, la app aplica las migraciones pendientes de `migrations/`.
 
@@ -187,9 +234,9 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 
 Los endpoints de `/usuarios`, `/roles`, `/permisos` y `/asignaciones` requieren un token Bearer. `/health`, `/auth/login`, `/docs` y `/openapi.json` permanecen públicos.
 
-Los endpoints de `/roles` también son temporalmente públicos mientras se implementa JWT. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
+Los endpoints de `/roles` requieren el rol `admin`. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
 
-Los endpoints de `/permisos` también son temporalmente públicos mientras se implementa JWT. Un permiso tiene `nombre` único entre registros activos y `descripcion` opcional.
+Los endpoints de `/permisos` requieren el rol `admin`. Un permiso tiene `nombre` único entre registros activos y `descripcion` opcional.
 
 Las asignaciones validan que las entidades estén activas y no eliminadas lógicamente. La asignación de un rol reemplaza el rol anterior del usuario; la relación `rol_permisos` es muchos-a-muchos y las asignaciones repetidas son idempotentes.
 
@@ -273,7 +320,7 @@ backend/
 │   ├── core/            # infraestructura compartida (BD, errores, clases base)
 │   ├── features/        # una carpeta por funcionalidad
 │   │   ├── _template/   # molde para entidades nuevas (CRUD completo)
-│   │   ├── auth/        # (pendiente) login y protección de rutas
+│   │   ├── auth/        # login JWT, usuario actual y autorización
 │   │   └── usuarios/    # CRUD de usuarios: el molde para las demás features
 │   └── seeders/         # datos de ejemplo para desarrollo
 ├── migrations/          # scripts SQL numerados

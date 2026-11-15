@@ -15,6 +15,7 @@ from app.core.database import connect, run_migrations
 from app.core.error_handlers import register_error_handlers
 from app.core.log_config import configure_logging
 from app.features.asignaciones.router import router as asignaciones_router
+from app.features.auth.authorization import admin_required
 from app.features.auth.dependencies import get_current_user
 from app.features.auth.router import router as auth_router
 from app.features.auth.service import bootstrap_first_user
@@ -57,9 +58,9 @@ def create_app() -> FastAPI:
     # Los routers de cada feature se registran aquí:
     protected = {"dependencies": [Depends(get_current_user)]}
     app.include_router(auth_router)
-    app.include_router(roles_router, **protected)
-    app.include_router(permisos_router, **protected)
-    app.include_router(asignaciones_router, **protected)
+    app.include_router(roles_router, dependencies=[Depends(admin_required)])
+    app.include_router(permisos_router, dependencies=[Depends(admin_required)])
+    app.include_router(asignaciones_router, dependencies=[Depends(admin_required)])
     app.include_router(usuarios_router, **protected)
 
     return app
