@@ -7,7 +7,7 @@ Ejecutar desde la carpeta backend/:
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -15,6 +15,9 @@ from app.core.database import connect, run_migrations
 from app.core.error_handlers import register_error_handlers
 from app.core.log_config import configure_logging
 from app.features.asignaciones.router import router as asignaciones_router
+from app.features.auth.dependencies import get_current_user
+from app.features.auth.router import router as auth_router
+from app.features.auth.service import bootstrap_first_user
 from app.features.permisos.router import router as permisos_router
 from app.features.roles.router import router as roles_router
 from app.features.usuarios.router import router as usuarios_router
@@ -26,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     connection = connect()
     try:
         run_migrations(connection)
+        bootstrap_first_user(connection)
     finally:
         connection.close()
     yield
@@ -51,10 +55,12 @@ def create_app() -> FastAPI:
         return {"estado": "ok"}
 
     # Los routers de cada feature se registran aquí:
-    app.include_router(usuarios_router)
-    app.include_router(roles_router)
-    app.include_router(permisos_router)
-    app.include_router(asignaciones_router)
+    protected = {"dependencies": [Depends(get_current_user)]}
+    app.include_router(auth_router)
+    app.include_router(roles_router, **protected)
+    app.include_router(permisos_router, **protected)
+    app.include_router(asignaciones_router, **protected)
+    app.include_router(usuarios_router, **protected)
 
     return app
 
