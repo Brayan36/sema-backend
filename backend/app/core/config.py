@@ -62,6 +62,13 @@ class Settings(BaseSettings):
             ) from error
         return name
 
+    @field_validator("jwt_expire_minutes")
+    @classmethod
+    def validate_jwt_expiration(cls, minutes: int) -> int:
+        if minutes <= 0:
+            raise ValueError("JWT_EXPIRE_MINUTES debe ser mayor que cero")
+        return minutes
+
     @model_validator(mode="after")
     def validate_production_jwt(self):
         if self.environment == "production" and (
