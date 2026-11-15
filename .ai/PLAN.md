@@ -10,7 +10,7 @@
 | 2. Core de datos y seeders | ✅ Completada (incluye `get_by`, WAL y `DbConnection`) |
 | 3. Feature `usuarios` | ✅ Completada |
 | 4. Autenticación JWT | ⏭️ Pendiente. **La implementa un compañero** |
-| 5. Entidades de datos e históricos | Pendiente (entidades por definir) |
+| 5. Gestión de usuarios y catálogos de acceso | 🚧 Modelo físico creado; faltan CRUD, asignaciones, seeders y autorización JWT |
 | 6. Plantilla y documentación | ✅ `_template/` y README listos (falta adaptar Postman) |
 
 Alcance de esta etapa: **eventos CRUD completos por entidad**, sobre SQLite. Sin creación por lotes ni sincronización especial.
@@ -107,6 +107,16 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 
 ### Fase 5: Entidades de datos e históricos
 **Bloqueada hasta definir las entidades** (ver [CONTEXT.md](CONTEXT.md), sección 9). Alcance acordado: **cada entidad tiene sus eventos CRUD completos**, con el mismo molde de `usuarios`. Sin creación por lotes ni sincronización especial.
+
+#### Subfase 5.1: modelo de gestión de usuarios 🚧
+- [x] Confirmar `correo`, `genero` y `telefono` opcionales, e `is_active` independiente de `deleted_at`
+- [x] Confirmar un único rol por usuario para el MVP
+- [x] Crear migraciones separadas para evolucionar `usuarios` y crear `roles`, `permisos`, `usuario_roles` y `rol_permisos`
+- [x] Exponer y validar `genero`, `telefono` e `is_active` en el CRUD de `usuarios`
+- [ ] Crear CRUD de `roles` y `permisos`
+- [ ] Crear servicios de asignación `usuario_roles` y `rol_permisos`
+- [ ] Crear seeders y contratos JSON
+- [ ] Integrar autorización en la fase JWT
 
 - [ ] Definir cada entidad: campos, relaciones con `usuarios` y caso de uso
 - [ ] Por entidad: migración, `schemas.py`, `repository.py`, `service.py`, `router.py`, seeder (opcional) y tests

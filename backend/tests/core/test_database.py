@@ -131,7 +131,7 @@ def test_write_is_committed_before_response_is_sent(app):
                 other.close()
         return response
 
-    datos = {"nombre": "Ana Pérez", "email": "ana@sema.example", "password": "clave-segura-1"}
+    datos = {"nombre": "Ana Pérez", "correo": "ana@sema.example", "password": "clave-segura-1"}
     with TestClient(app) as client:
         assert client.post("/usuarios", json=datos).status_code == 201
 

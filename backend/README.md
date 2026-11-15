@@ -93,7 +93,7 @@ Después de instalar, editar `.env` con los valores propios.
 | `JWT_SECRET` | *(cadena aleatoria de 32+ caracteres)* | Secreto para firmar tokens. **Nunca subirlo a Git** |
 | `JWT_ALGORITHM` | `HS256` | Algoritmo de firma |
 | `JWT_EXPIRE_MINUTES` | `60` | Duración del token en minutos |
-| `FIRST_USER_EMAIL` | `admin@sema.example` | Email del primer usuario (lo usará la fase de autenticación) |
+| `FIRST_USER_EMAIL` | `admin@sema.example` | Correo del primer usuario (lo usará la fase de autenticación) |
 | `FIRST_USER_PASSWORD` | *(mínimo 8 caracteres)* | Contraseña del primer usuario |
 
 Para generar un `JWT_SECRET` seguro:
@@ -142,7 +142,7 @@ Todas las tablas usan `id INTEGER PRIMARY KEY AUTOINCREMENT`. En SQLite es un en
 
 Todos usan la contraseña **`Sema2026!`** (solo para desarrollo):
 
-| Email | Estado |
+| Correo | Estado |
 |---|---|
 | `admin@sema.example` | Activo |
 | `backend@sema.example` | Activo |
@@ -175,9 +175,9 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 |---|---|---|
 | `limit` | `20` | de 1 a 100 |
 | `offset` | `0` | 0 o más (cuántos registros saltar) |
-| `order_by` | `id` | `id`, `nombre`, `email`, `created_at` |
+| `order_by` | `id` | `id`, `nombre`, `correo`, `created_at` |
 | `direction` | `asc` | `asc`, `desc` |
-| `q` | *(sin filtro)* | Texto a buscar en `nombre` y `email`. Parcial y sin distinguir mayúsculas (solo ASCII: no ignora el caso de tildes ni de la ñ). `%` y `_` se buscan como texto normal |
+| `q` | *(sin filtro)* | Texto a buscar en `nombre` y `correo`. Parcial y sin distinguir mayúsculas (solo ASCII: no ignora el caso de tildes ni de la ñ). `%` y `_` se buscan como texto normal |
 | `created_from` | *(sin filtro)* | Creados desde esta fecha y hora, inclusive. ISO 8601 en UTC con `Z`: `2026-11-14T00:00:00Z`. Sin zona horaria se asume UTC |
 | `created_to` | *(sin filtro)* | Creados hasta esta fecha y hora, inclusive |
 
@@ -186,9 +186,10 @@ Los filtros se combinan con AND, y `total` cuenta **solo lo que cumple los filtr
 ```json
 {
   "items": [
-    { "id": 1, "nombre": "Admin SEMA", "email": "admin@sema.example",
+    { "id": 1, "nombre": "Admin SEMA", "correo": "admin@sema.example",
+      "genero": null, "telefono": null, "is_active": true,
       "created_at": "2026-11-14T19:09:45Z", "updated_at": "2026-11-14T19:09:45Z" },
-    { "id": 2, "nombre": "Equipo Backend", "email": "backend@sema.example",
+    { "id": 2, "nombre": "Equipo Backend", "correo": "backend@sema.example",
       "created_at": "2026-11-14T19:09:45Z", "updated_at": "2026-11-14T19:09:45Z" }
   ],
   "total": 4,
@@ -200,10 +201,13 @@ Los filtros se combinan con AND, y `total` cuenta **solo lo que cumple los filtr
 
 ### Reglas de los datos de usuario
 
-- `email` se guarda en minúsculas y sin espacios, y es único entre los usuarios activos. Si ya existe, responde **409**. Un usuario eliminado no bloquea su email.
+- `correo` se guarda en minúsculas y sin espacios, y es único entre los usuarios activos. Si ya existe, responde **409**. Un usuario eliminado no bloquea su correo.
 - `nombre`: de 2 a 100 caracteres, sin espacios al inicio ni al final.
 - `password`: de 8 a 128 caracteres. Se guarda con hash y **nunca** aparece en una respuesta.
-- `PATCH` cambia solo los campos enviados. Un campo con `null` o un campo desconocido responde **422**.
+- `genero`: opcional; de 1 a 50 caracteres si se envía.
+- `telefono`: opcional; de 7 a 25 caracteres. Solo admite dígitos, espacios, `+`, `-` y paréntesis.
+- `is_active`: booleano; indica si la cuenta está activa y es independiente de `deleted_at`.
+- `PATCH` cambia solo los campos enviados. `genero` y `telefono` aceptan `null` para borrar su valor; los demás campos no aceptan `null` y un campo desconocido responde **422**.
 - **Fechas:** `created_at` y `updated_at` salen en **UTC**, ISO 8601 (`"2026-11-14T19:09:45Z"`). Mostrarlas en hora local es trabajo del frontend:
   ```js
   new Date("2026-11-09T00:17:45Z").toLocaleString("es-CO", { timeZone: "America/Bogota" })
@@ -223,7 +227,7 @@ Los errores de validación (422) agregan `details` con cada campo inválido:
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Datos de entrada inválidos",
-    "details": [{ "field": "body.email", "message": "value is not a valid email address" }]
+    "details": [{ "field": "body.correo", "message": "value is not a valid email address" }]
   }
 }
 ```
@@ -279,7 +283,7 @@ Las columnas se validan contra una lista blanca: cualquier otra lanza `InvalidFi
 | `ranges` | `{"created_at": (desde, hasta)}` | Rango inclusivo. Cualquier límite puede ser `None`. Los `datetime` se convierten a UTC |
 | `search` | `"maíz"` | Texto parcial en las columnas de `searchable` |
 
-Se puede filtrar por las `columns` del repositorio más `id`, `created_at` y `updated_at`. Para habilitar la búsqueda, el repositorio declara `searchable = ("nombre", "email")`. En un router, `Depends(list_filters)` (de `app/core/list_filters.py`) agrega `q`, `created_from` y `created_to`.
+Se puede filtrar por las `columns` del repositorio más `id`, `created_at` y `updated_at`. Para habilitar la búsqueda, el repositorio declara `searchable = ("nombre", "correo")`. En un router, `Depends(list_filters)` (de `app/core/list_filters.py`) agrega `q`, `created_from` y `created_to`.
 
 ## Agregar una feature nueva (resumen)
 

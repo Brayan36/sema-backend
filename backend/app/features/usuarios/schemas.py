@@ -24,13 +24,13 @@ from app.core.base_schema import AuditSchema
 # ---------- Tipos reutilizables ----------
 
 
-def normalizar_email(email):
+def normalizar_correo(correo):
     """'  Admin@SEMA.example ' y 'admin@sema.example' deben ser el mismo usuario."""
-    return email.strip().lower() if isinstance(email, str) else email
+    return correo.strip().lower() if isinstance(correo, str) else correo
 
 
-# BeforeValidator: se normaliza ANTES de validar el formato del email.
-EmailNormalizado = Annotated[EmailStr, BeforeValidator(normalizar_email)]
+# BeforeValidator: se normaliza ANTES de validar el formato del correo.
+CorreoNormalizado = Annotated[EmailStr, BeforeValidator(normalizar_correo)]
 
 # strip_whitespace: "   " queda vacío y no pasa el mínimo de 2 caracteres.
 Nombre = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
@@ -38,9 +38,21 @@ Nombre = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, m
 # La contraseña NO se recorta: los espacios pueden ser parte de ella.
 Password = Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
+# Son datos opcionales. Si llegan, se normalizan y deben contener información útil.
+Genero = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+Telefono = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=7,
+        max_length=25,
+        pattern=r"^\+?[0-9() -]+$",
+    ),
+]
+
 # Columnas por las que se puede ordenar el listado. Debe coincidir con
 # `UsuarioRepository.sortable` (un test lo verifica). Swagger las muestra como lista.
-OrdenUsuario = Literal["id", "nombre", "email", "created_at"]
+OrdenUsuario = Literal["id", "nombre", "correo", "created_at"]
 
 
 # ---------- Entrada ----------
@@ -52,8 +64,11 @@ class UsuarioCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nombre: Nombre
-    email: EmailNormalizado
+    correo: CorreoNormalizado
     password: Password
+    genero: Genero | None = None
+    telefono: Telefono | None = None
+    is_active: bool = True
 
 
 class UsuarioUpdate(BaseModel):
@@ -62,14 +77,22 @@ class UsuarioUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nombre: Nombre | None = None
-    email: EmailNormalizado | None = None
+    correo: CorreoNormalizado | None = None
     password: Password | None = None
+    genero: Genero | None = None
+    telefono: Telefono | None = None
+    is_active: bool | None = None
 
     @model_validator(mode="after")
     def rechazar_nulos(self):
         # Un campo omitido significa "no cambiar". Un campo enviado como null
         # intentaría guardar NULL en una columna NOT NULL (y daría un 500).
-        nulos = sorted(campo for campo in self.model_fields_set if getattr(self, campo) is None)
+        requeridos = {"nombre", "correo", "password", "is_active"}
+        nulos = sorted(
+            campo
+            for campo in self.model_fields_set & requeridos
+            if getattr(self, campo) is None
+        )
         if nulos:
             raise ValueError(f"Estos campos no pueden ser null: {', '.join(nulos)}")
         return self
@@ -81,9 +104,12 @@ class UsuarioUpdate(BaseModel):
 class UsuarioOut(AuditSchema):
     """Lo que ve el frontend. Sin password_hash ni deleted_at.
 
-    `email` es `str` y no `EmailStr`: el email ya se validó al entrar, y validar
+    `correo` es `str` y no `EmailStr`: el correo ya se validó al entrar, y validar
     otra vez al salir solo podría convertir un dato viejo en un error 500.
     """
 
     nombre: str
-    email: str
+    correo: str
+    genero: str | None = None
+    telefono: str | None = None
+    is_active: bool

@@ -10,7 +10,7 @@ from app.core.exceptions import NotFoundError, UnauthorizedError
 
 FRONTEND_ORIGIN = "http://localhost:5173"
 INSERT_USUARIO = (
-    "INSERT INTO usuarios (nombre, email, password_hash, created_at, updated_at) "
+    "INSERT INTO usuarios (nombre, correo, password_hash, created_at, updated_at) "
     "VALUES (?, ?, 'hash', 't', 't')"
 )
 
