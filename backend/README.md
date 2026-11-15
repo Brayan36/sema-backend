@@ -193,6 +193,8 @@ Los endpoints de `/permisos` también son temporalmente públicos mientras se im
 
 Las asignaciones validan que las entidades estén activas y no eliminadas lógicamente. La asignación de un rol reemplaza el rol anterior del usuario; la relación `rol_permisos` es muchos-a-muchos y las asignaciones repetidas son idempotentes.
 
+Los contratos JSON versionables para frontend están en `backend/data/contracts/`. El comando `py manage.py db:seed` ejecuta los seeders en orden: usuarios, roles, permisos y asignaciones.
+
 ### Listar con paginación, orden y filtros
 
 | Parámetro | Por defecto | Valores |
