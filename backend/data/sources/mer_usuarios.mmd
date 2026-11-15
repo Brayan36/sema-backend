@@ -1,0 +1,41 @@
+
+erDiagram
+    usuarios {
+        int id PK
+        string nombre
+        string correo UK
+        string password_hash
+        string genero
+        string telefono
+        datetime created_at
+        datetime updated_at
+        boolean is_active
+        datetime deleted_at
+    }
+
+    roles {
+        int id PK
+        string nombre UK
+        string descripcion
+    }
+
+    permisos {
+        int id PK
+        string nombre UK
+        string descripcion
+    }
+
+    usuario_roles {
+        int usuario_id PK, FK
+        int rol_id PK, FK
+    }
+
+    rol_permisos {
+        int rol_id PK, FK
+        int permiso_id PK, FK
+    }
+
+    usuarios ||--o| usuario_roles : tiene
+    roles ||--o{ usuario_roles : asignado
+    roles ||--o{ rol_permisos : contiene
+    permisos ||--o{ rol_permisos : asociado

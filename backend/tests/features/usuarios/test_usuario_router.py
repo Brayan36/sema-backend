@@ -8,12 +8,12 @@ from app.core.database import connect
 from app.features.usuarios.repository import UsuarioRepository
 from app.features.usuarios.schemas import OrdenUsuario
 
-DATOS = {"nombre": "Ana Pérez", "email": "ana@sema.example", "password": "clave-segura-1"}
+DATOS = {"nombre": "Ana Pérez", "correo": "ana@sema.example", "password": "clave-segura-1"}
 
 
 @pytest.fixture
 def crear(client):
-    """Crea un usuario por la API y devuelve su JSON. Acepta cambios: crear(email=...)."""
+    """Crea un usuario por la API y devuelve su JSON. Acepta cambios: crear(correo=...)."""
 
     def _crear(**cambios):
         response = client.post("/usuarios", json={**DATOS, **cambios})
@@ -31,7 +31,19 @@ def test_crear_responde_201_sin_datos_sensibles(client):
 
     assert response.status_code == 201
     body = response.json()
-    assert set(body) == {"id", "nombre", "email", "created_at", "updated_at"}
+    assert set(body) == {
+        "id",
+        "nombre",
+        "correo",
+        "genero",
+        "telefono",
+        "is_active",
+        "created_at",
+        "updated_at",
+    }
+    assert body["genero"] is None
+    assert body["telefono"] is None
+    assert body["is_active"] is True
     assert "password" not in response.text
 
 
@@ -63,7 +75,7 @@ def test_caracteres_especiales_se_guardan_intactos(client, nombre):
     assert guardado == nombre
 
 
-def test_crear_email_duplicado_responde_409(client, crear):
+def test_crear_correo_duplicado_responde_409(client, crear):
     crear()
 
     response = client.post("/usuarios", json=DATOS)
@@ -72,14 +84,33 @@ def test_crear_email_duplicado_responde_409(client, crear):
     assert response.json()["error"]["code"] == "CONFLICT"
 
 
+def test_crear_guarda_datos_opcionales_y_estado(client):
+    response = client.post(
+        "/usuarios",
+        json={
+            **DATOS,
+            "genero": "  femenino  ",
+            "telefono": "+57 (300) 123-4567",
+            "is_active": False,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["genero"] == "femenino"
+    assert response.json()["telefono"] == "+57 (300) 123-4567"
+    assert response.json()["is_active"] is False
+
+
 @pytest.mark.parametrize(
     ("campo", "valor"),
     [
-        ("email", "no-es-un-email"),
-        ("email", "ana@sema.local"),  # dominio de uso especial
+        ("correo", "no-es-un-email"),
+        ("correo", "ana@sema.local"),  # dominio de uso especial
         ("nombre", "   "),  # solo espacios
         ("nombre", "A"),
         ("password", "corta"),
+        ("telefono", "texto-no-valido"),
+        ("telefono", "123"),
     ],
 )
 def test_crear_con_datos_invalidos_responde_422(client, campo, valor):
@@ -100,8 +131,8 @@ def test_crear_con_campos_desconocidos_responde_422(client, campo_extra):
 
 
 def test_listar_responde_pagina(client, crear):
-    crear(email="a@sema.example")
-    crear(email="b@sema.example")
+    crear(correo="a@sema.example")
+    crear(correo="b@sema.example")
 
     response = client.get("/usuarios", params={"limit": 1})
 
@@ -115,7 +146,7 @@ def test_listar_responde_pagina(client, crear):
 
 def test_listar_ordena_por_columna(client, crear):
     for nombre in ("Carla", "Ana", "Beto"):
-        crear(nombre=nombre, email=f"{nombre.lower()}@sema.example")
+        crear(nombre=nombre, correo=f"{nombre.lower()}@sema.example")
 
     body = client.get("/usuarios", params={"order_by": "nombre", "direction": "desc"}).json()
 
@@ -173,7 +204,21 @@ def test_actualizar_parcial(client, crear):
 
     assert response.status_code == 200
     assert response.json()["nombre"] == "Ana María"
-    assert response.json()["email"] == usuario["email"]
+    assert response.json()["correo"] == usuario["correo"]
+
+
+def test_actualizar_permite_cambiar_estado_y_limpiar_datos_opcionales(client, crear):
+    usuario = crear(genero="Masculino", telefono="300 123 4567")
+
+    response = client.patch(
+        f"/usuarios/{usuario['id']}",
+        json={"is_active": False, "genero": None, "telefono": None},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+    assert response.json()["genero"] is None
+    assert response.json()["telefono"] is None
 
 
 def test_actualizar_con_body_vacio_no_cambia_nada(client, crear):
@@ -185,7 +230,7 @@ def test_actualizar_con_body_vacio_no_cambia_nada(client, crear):
     assert response.json() == usuario
 
 
-@pytest.mark.parametrize("campo", ["nombre", "email", "password"])
+@pytest.mark.parametrize("campo", ["nombre", "correo", "password", "is_active"])
 def test_actualizar_con_null_responde_422(client, crear, campo):
     usuario = crear()
 
@@ -208,11 +253,11 @@ def test_actualizar_inexistente_responde_404(client):
     assert response.status_code == 404
 
 
-def test_actualizar_a_email_ocupado_responde_409(client, crear):
-    crear(email="ocupado@sema.example")
-    usuario = crear(email="libre@sema.example")
+def test_actualizar_a_correo_ocupado_responde_409(client, crear):
+    crear(correo="ocupado@sema.example")
+    usuario = crear(correo="libre@sema.example")
 
-    response = client.patch(f"/usuarios/{usuario['id']}", json={"email": "ocupado@sema.example"})
+    response = client.patch(f"/usuarios/{usuario['id']}", json={"correo": "ocupado@sema.example"})
 
     assert response.status_code == 409
 
@@ -235,7 +280,7 @@ def test_eliminar_inexistente_responde_404(client):
     assert client.delete("/usuarios/999").status_code == 404
 
 
-def test_se_puede_recrear_un_usuario_eliminado_con_el_mismo_email(client, crear):
+def test_se_puede_recrear_un_usuario_eliminado_con_el_mismo_correo(client, crear):
     # Criterio de "listo" de la feature usuarios.
     usuario = crear()
     client.delete(f"/usuarios/{usuario['id']}")
