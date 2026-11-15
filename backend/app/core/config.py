@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Carpeta backend/. Las rutas relativas se resuelven desde aquí, sin importar
@@ -61,6 +61,14 @@ class Settings(BaseSettings):
                 f"TIMEZONE '{name}' no existe. Ejemplo válido: America/Bogota"
             ) from error
         return name
+
+    @model_validator(mode="after")
+    def validate_production_jwt(self):
+        if self.environment == "production" and (
+            self.jwt_secret == INSECURE_JWT_SECRET or len(self.jwt_secret) < 32
+        ):
+            raise ValueError("JWT_SECRET debe tener al menos 32 caracteres en producción")
+        return self
 
 
 settings = Settings()

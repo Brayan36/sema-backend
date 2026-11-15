@@ -9,7 +9,7 @@
 | 1. Fundación | ✅ Completada (código importado del proyecto de entrenamiento y adaptado) |
 | 2. Core de datos y seeders | ✅ Completada (incluye `get_by`, WAL y `DbConnection`) |
 | 3. Feature `usuarios` | ✅ Completada |
-| 4. Autenticación JWT | ⏭️ Pendiente. **La implementa un compañero** |
+| 4. Autenticación JWT | ✅ Completada; autorización fina por permisos pendiente |
 | 5. Gestión de usuarios y catálogos de acceso | 🚧 Modelo físico creado; faltan CRUD, asignaciones, seeders y autorización JWT |
 | 6. Plantilla y documentación | ✅ `_template/` y README listos (falta adaptar Postman) |
 
@@ -93,14 +93,14 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 
 **Listo cuando:** los 5 endpoints funcionan con los códigos HTTP correctos, se puede reutilizar el email de un usuario eliminado y `password_hash` no aparece en ninguna respuesta. *(Cumplido.)*
 
-### Fase 4: Autenticación JWT ⏭️ Pendiente
+### Fase 4: Autenticación JWT ✅
 **Responsable:** un compañero del equipo backend. La carpeta `app/features/auth/` ya existe (vacía). El hash de contraseñas ya está en `core/security.py`. Diseño en [ARCHITECTURE.md](ARCHITECTURE.md), sección 7.
 
 - [ ] `core/security.py`: `create_access_token`, `decode_access_token`
 - [ ] `features/auth/`: `get_current_user` (valida el token **y** que el usuario exista y no esté eliminado), `POST /auth/login` (formulario OAuth2), `GET /auth/me`
 - [ ] Proteger todo `/usuarios` y actualizar sus tests con un fixture que entregue los headers `Authorization`
 - [ ] Bootstrap del primer usuario desde `FIRST_USER_EMAIL` / `FIRST_USER_PASSWORD`
-- [ ] Validación de arranque: no inicia con el `JWT_SECRET` de ejemplo (o menor de 32 caracteres) si `ENVIRONMENT=production`
+- [x] Validación de arranque: no inicia con el `JWT_SECRET` de ejemplo (o menor de 32 caracteres) si `ENVIRONMENT=production`
 - [ ] Tests: sin token, token inválido o expirado y token de usuario eliminado → 401; login incorrecto → 401 con mensaje genérico
 
 **Listo cuando:** el botón **Authorize** de Swagger funciona y los tests pasan.

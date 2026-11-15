@@ -185,7 +185,7 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 | `DELETE` | `/asignaciones/roles/{id}/permisos/{permiso_id}` | Retirar un permiso del rol |
 | `GET` | `/asignaciones/permisos/{id}/roles` | Listar roles con el permiso |
 
-**Hoy los endpoints de `/usuarios` funcionan sin token.** La protección llega con la fase de autenticación (`/auth/login`, `/auth/me` y `get_current_user`).
+Los endpoints de `/usuarios`, `/roles`, `/permisos` y `/asignaciones` requieren un token Bearer. `/health`, `/auth/login`, `/docs` y `/openapi.json` permanecen públicos.
 
 Los endpoints de `/roles` también son temporalmente públicos mientras se implementa JWT. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
 

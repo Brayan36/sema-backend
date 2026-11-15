@@ -8,11 +8,11 @@
 |---|---|
 | `core/` (config, database, base_repository, base_schema, errores, logging, base_seeder) | ✅ Implementado |
 | `core/security.py`: hash de contraseñas | ✅ Implementado |
-| `core/security.py`: JWT, y `features/auth/` | 📝 Diseño (fase 4, la implementa un compañero) |
+| `core/security.py`: JWT, y `features/auth/` | ✅ Implementado (access token y rutas protegidas; sin roles/permisos finos todavía) |
 | `manage.py` y seeders | ✅ Implementado |
 | Feature `usuarios` | ✅ Implementada (todavía sin protección de token) |
 | Feature `roles` | ✅ Implementada (todavía sin protección de token) |
-| Feature `permisos` | ✅ Implementada (todavía sin protección de token) |
+| Feature `permisos` | ✅ Implementada (protegida por JWT; autorización fina pendiente) |
 | Gestión de usuarios: modelo físico | 🚧 Migraciones creadas; faltan features CRUD de roles, permisos y asignaciones |
 | `features/_template/` | ✅ Molde de feature con CRUD completo y probado (no registrado en `main.py`) |
 
