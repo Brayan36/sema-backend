@@ -53,14 +53,14 @@ def test_crear_valida_datos(client, campo, valor):
 
 
 def test_listar_pagina_busca_y_ordena(client, crear):
-    crear(nombre="Administrador")
-    crear(nombre="Agricultor", descripcion="Gestiona cultivos")
+    crear(nombre="Supervisor")
+    crear(nombre="Tecnico", descripcion="Gestiona cultivos")
 
-    response = client.get("/roles", params={"q": "agri", "order_by": "nombre", "limit": 1})
+    response = client.get("/roles", params={"q": "tecn", "order_by": "nombre", "limit": 1})
 
     assert response.status_code == 200
     body = response.json()
-    assert [rol["nombre"] for rol in body["items"]] == ["Agricultor"]
+    assert [rol["nombre"] for rol in body["items"]] == ["Tecnico"]
     assert (body["total"], body["limit"], body["offset"]) == (1, 1, 0)
 
 

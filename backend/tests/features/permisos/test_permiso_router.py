@@ -7,7 +7,7 @@ import pytest
 from app.features.permisos.repository import PermisoRepository
 from app.features.permisos.schemas import OrdenPermiso
 
-DATOS = {"nombre": "usuarios.crear", "descripcion": "Registrar usuarios"}
+DATOS = {"nombre": "cultivos.crear", "descripcion": "Registrar cultivos"}
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def test_crear_y_obtener_permiso(client):
     assert response.status_code == 201
     creado = response.json()
     assert set(creado) == {"id", "nombre", "descripcion", "created_at", "updated_at"}
-    assert creado["nombre"] == "usuarios.crear"
+    assert creado["nombre"] == "cultivos.crear"
     assert client.get(f"/permisos/{creado['id']}").json() == creado
 
 
@@ -53,14 +53,14 @@ def test_crear_valida_datos(client, campo, valor):
 
 
 def test_listar_pagina_busca_y_ordena(client, crear):
-    crear(nombre="usuarios.crear")
-    crear(nombre="historicos.consultar", descripcion="Consulta históricos")
+    crear(nombre="cultivos.crear")
+    crear(nombre="informes.consultar", descripcion="Consulta informes")
 
-    response = client.get("/permisos", params={"q": "histor", "order_by": "nombre", "limit": 1})
+    response = client.get("/permisos", params={"q": "inform", "order_by": "nombre", "limit": 1})
 
     assert response.status_code == 200
     body = response.json()
-    assert [permiso["nombre"] for permiso in body["items"]] == ["historicos.consultar"]
+    assert [permiso["nombre"] for permiso in body["items"]] == ["informes.consultar"]
     assert (body["total"], body["limit"], body["offset"]) == (1, 1, 0)
 
 

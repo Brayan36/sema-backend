@@ -4,9 +4,11 @@ from typing import get_args
 
 import pytest
 
+from app.core.config import settings
 from app.core.database import connect
+from app.features.auth.dependencies import get_current_user
 from app.features.usuarios.repository import UsuarioRepository
-from app.features.usuarios.schemas import OrdenUsuario
+from app.features.usuarios.schemas import OrdenUsuario, UsuarioOut
 
 DATOS = {"nombre": "Ana Pérez", "correo": "ana@sema.example", "password": "clave-segura-1"}
 
@@ -289,3 +291,55 @@ def test_se_puede_recrear_un_usuario_eliminado_con_el_mismo_correo(client, crear
 
     assert response.status_code == 201
     assert response.json()["id"] != usuario["id"]
+
+
+# ---------- eliminar: siempre debe quedar un admin ----------
+
+
+def hacer_admin(usuario_id):
+    connection = connect(settings.db_path)
+    connection.execute(
+        "INSERT INTO usuario_roles (usuario_id, rol_id) "
+        "SELECT ?, id FROM roles WHERE nombre = 'admin' AND deleted_at IS NULL",
+        (usuario_id,),
+    )
+    connection.commit()
+    connection.close()
+
+
+def test_eliminar_su_propia_cuenta_responde_409(app, client, crear):
+    ana = crear()
+    app.dependency_overrides[get_current_user] = lambda: UsuarioOut(
+        id=ana["id"],
+        nombre="Ana",
+        correo=ana["correo"],
+        is_active=True,
+        created_at=ana["created_at"],
+        updated_at=ana["updated_at"],
+    )
+
+    response = client.delete(f"/usuarios/{ana['id']}")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "CONFLICT"
+    assert client.get(f"/usuarios/{ana['id']}").status_code == 200
+
+
+def test_eliminar_al_unico_admin_responde_409(client, crear):
+    admin = crear()
+    hacer_admin(admin["id"])
+
+    response = client.delete(f"/usuarios/{admin['id']}")
+
+    assert response.status_code == 409
+    assert "único administrador" in response.json()["error"]["message"]
+    assert client.get(f"/usuarios/{admin['id']}").status_code == 200
+
+
+def test_eliminar_admin_con_otro_admin_responde_204(client, crear):
+    uno = crear(correo="uno@sema.example")
+    dos = crear(correo="dos@sema.example")
+    hacer_admin(uno["id"])
+    hacer_admin(dos["id"])
+
+    assert client.delete(f"/usuarios/{uno['id']}").status_code == 204

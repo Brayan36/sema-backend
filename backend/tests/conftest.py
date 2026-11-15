@@ -17,13 +17,20 @@ from app.features.usuarios.schemas import UsuarioOut
 from app.main import create_app
 
 
+@pytest.fixture(autouse=True)
+def isolate_from_local_env(monkeypatch):
+    """El .env del equipo no debe crear el primer usuario en cada test."""
+    monkeypatch.setattr(settings, "first_user_email", None)
+    monkeypatch.setattr(settings, "first_user_password", None)
+
+
 @pytest.fixture
 def app(tmp_path, monkeypatch) -> FastAPI:
     """App de prueba con una base de datos temporal (se borra al terminar el test)."""
     monkeypatch.setattr(settings, "db_path", tmp_path / "test.db")
     application = create_app()
     application.dependency_overrides[get_current_user] = lambda: UsuarioOut(
-        id=1,
+        id=999_999,  # no debe coincidir con ningún usuario creado en los tests
         nombre="Usuario de pruebas",
         correo="test@sema.example",
         genero=None,

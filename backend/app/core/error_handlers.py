@@ -41,6 +41,8 @@ HTTP_ERROR_MESSAGES = {
 
 # Mensajes específicos que FastAPI genera en inglés.
 FRAMEWORK_MESSAGES = {
+    # OAuth2PasswordBearer cuando falta el header Authorization.
+    "Not authenticated": "No autenticado",
     # El body no se pudo decodificar (ej. texto que no está en UTF-8).
     "There was an error parsing the body": (
         "No se pudo leer el cuerpo de la petición: debe ser JSON en UTF-8"
