@@ -176,3 +176,4 @@ El código de las fases 1 a 3 se importó del proyecto de entrenamiento (`SEMA-E
 | 2026-11-14 | Fase 3: feature roles | Se implementó el CRUD completo de `roles`: nombre único entre activos, descripción opcional, búsqueda, paginación y borrado lógico. Aún no hay JWT ni asignaciones de usuario a rol. |
 | 2026-11-14 | Fase 4: feature permisos | Se implementó el CRUD completo de `permisos`: nombre único entre activos, descripción opcional, búsqueda, paginación y borrado lógico. Aún no hay JWT ni asignaciones entre las entidades. |
 | 2026-11-14 | Fase 5: asignaciones | Se implementaron asignaciones y consultas para `usuario_roles` y `rol_permisos`. La asignación de rol reemplaza el rol anterior del usuario; las relaciones validan entidades activas y permiten retirar asignaciones. |
+| 2026-11-14 | Fase 6: seeders y contratos | Se añadieron seeders idempotentes para roles, permisos y asignaciones, además de contratos JSON versionables en `backend/data/contracts/`. |

@@ -1,0 +1,18 @@
+{
+  "resource": "asignaciones",
+  "rules": {
+    "usuario_roles": "Un usuario puede tener como máximo un rol; una nueva asignación reemplaza la anterior.",
+    "rol_permisos": "Un rol puede tener varios permisos y un permiso puede pertenecer a varios roles.",
+    "deleted_entities": "Solo se pueden asignar entidades activas y no eliminadas lógicamente."
+  },
+  "endpoints": [
+    "PUT /asignaciones/usuarios/{usuario_id}/rol",
+    "GET /asignaciones/usuarios/{usuario_id}/rol",
+    "DELETE /asignaciones/usuarios/{usuario_id}/rol",
+    "GET /asignaciones/roles/{rol_id}/usuarios",
+    "PUT /asignaciones/roles/{rol_id}/permisos/{permiso_id}",
+    "GET /asignaciones/roles/{rol_id}/permisos",
+    "DELETE /asignaciones/roles/{rol_id}/permisos/{permiso_id}",
+    "GET /asignaciones/permisos/{permiso_id}/roles"
+  ]
+}

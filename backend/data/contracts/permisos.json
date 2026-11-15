@@ -1,0 +1,8 @@
+{
+  "resource": "permisos",
+  "fields": {
+    "nombre": {"type": "string", "required": true, "unique_among_active": true},
+    "descripcion": {"type": "string|null", "required": false}
+  },
+  "output_excludes": ["deleted_at"]
+}

@@ -116,7 +116,7 @@ No se avanza sin cumplir el criterio de "listo" de la fase actual.
 - [x] Crear CRUD de `roles`
 - [x] Crear CRUD de `permisos`
 - [x] Crear servicios de asignación `usuario_roles` y `rol_permisos`
-- [ ] Crear seeders y contratos JSON
+- [x] Crear seeders y contratos JSON
 - [ ] Integrar autorización en la fase JWT
 
 - [ ] Definir cada entidad: campos, relaciones con `usuarios` y caso de uso
