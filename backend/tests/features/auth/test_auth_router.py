@@ -123,6 +123,37 @@ def test_expired_token_is_rejected(auth_client):
     assert response.status_code == 401
 
 
+def test_tampered_token_is_rejected(auth_client):
+    token = auth_client.post(
+        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
+    ).json()["access_token"]
+    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+
+    response = auth_client.get("/auth/me", headers={"Authorization": f"Bearer {tampered}"})
+
+    assert response.status_code == 401
+
+
+def test_deleted_admin_role_revokes_administrative_access(auth_client):
+    connection = connect(settings.db_path)
+    connection.execute(
+        "INSERT INTO roles (nombre, created_at, updated_at) VALUES (?, ?, ?)",
+        ("admin", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
+    )
+    connection.execute("INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 1)")
+    connection.commit()
+    token = auth_client.post(
+        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
+    ).json()["access_token"]
+    connection.execute("UPDATE roles SET deleted_at = ? WHERE id = 1", ("2026-11-15T00:00:00Z",))
+    connection.commit()
+    connection.close()
+
+    response = auth_client.get("/roles", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+
+
 def test_bootstrap_creates_first_user(tmp_path, monkeypatch):
     from app.core.database import connect, run_migrations
     from app.features.auth.service import bootstrap_first_user
