@@ -61,3 +61,22 @@ def test_invalid_login_and_invalid_token_are_unauthorized(auth_client):
 
     invalid_token = auth_client.get("/auth/me", headers={"Authorization": "Bearer no-es-valido"})
     assert invalid_token.status_code == 401
+
+
+def test_login_normalizes_correo_and_rejects_inactive_user(auth_client):
+    normalized = auth_client.post(
+        "/auth/login",
+        data={"username": "  ANA@SEMA.EXAMPLE ", "password": "clave-segura-1"},
+    )
+    assert normalized.status_code == 200
+
+    connection = connect(settings.db_path)
+    connection.execute("UPDATE usuarios SET is_active = 0 WHERE correo = ?", ("ana@sema.example",))
+    connection.commit()
+    connection.close()
+
+    inactive = auth_client.post(
+        "/auth/login",
+        data={"username": "ana@sema.example", "password": "clave-segura-1"},
+    )
+    assert inactive.status_code == 401

@@ -1,4 +1,12 @@
-from app.core.security import hash_password, verify_password
+import jwt
+
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 
 
 def test_hash_is_not_the_plain_password():
@@ -15,3 +23,13 @@ def test_verify_password():
 
     assert verify_password("secreto123", password_hash) is True
     assert verify_password("otra-clave", password_hash) is False
+
+
+def test_access_token_contains_standard_claims_and_round_trips_subject():
+    token = create_access_token("42")
+    payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+    assert payload["sub"] == "42"
+    assert payload["iat"] <= payload["exp"]
+    assert payload["jti"]
+    assert decode_access_token(token) == "42"
