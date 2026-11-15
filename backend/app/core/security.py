@@ -4,6 +4,7 @@ Las funciones de JWT se agregan en la fase de autenticación.
 """
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import jwt
 from jwt import InvalidTokenError
@@ -23,9 +24,12 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 def create_access_token(subject: str) -> str:
-    expires_at = datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes)
+    issued_at = datetime.now(UTC)
+    expires_at = issued_at + timedelta(minutes=settings.jwt_expire_minutes)
     return jwt.encode(
-        {"sub": subject, "exp": expires_at}, settings.jwt_secret, algorithm=settings.jwt_algorithm
+        {"sub": subject, "iat": issued_at, "exp": expires_at, "jti": uuid4().hex},
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
     )
 
 

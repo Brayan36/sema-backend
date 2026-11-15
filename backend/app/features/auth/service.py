@@ -1,11 +1,10 @@
-from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.config import settings
 from app.core.database import DbConnection
+from app.core.exceptions import UnauthorizedError
 from app.core.security import create_access_token, hash_password, verify_password
 from app.features.usuarios.repository import UsuarioRepository
-from app.features.usuarios.schemas import UsuarioOut
 
 
 class AuthService:
@@ -19,11 +18,7 @@ class AuthService:
             or not usuario["is_active"]
             or not verify_password(form.password, usuario["password_hash"])
         ):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise UnauthorizedError("Credenciales inválidas")
         return {"access_token": create_access_token(str(usuario["id"])), "token_type": "bearer"}
 
 
@@ -45,7 +40,3 @@ def bootstrap_first_user(connection) -> bool:
     )
     connection.commit()
     return True
-
-
-def usuario_out(registro: dict) -> UsuarioOut:
-    return UsuarioOut.model_validate(registro)
