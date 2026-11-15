@@ -60,6 +60,35 @@ def test_public_documentation_routes_remain_available(auth_client):
     assert auth_client.get("/openapi.json").status_code == 200
 
 
+def test_authenticated_user_without_role_cannot_manage_roles(auth_client):
+    token = auth_client.post(
+        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
+    ).json()["access_token"]
+
+    response = auth_client.get("/roles", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def test_admin_role_can_manage_roles(auth_client):
+    connection = connect(settings.db_path)
+    connection.execute(
+        "INSERT INTO roles (nombre, created_at, updated_at) VALUES (?, ?, ?)",
+        ("admin", "2026-11-14T00:00:00Z", "2026-11-14T00:00:00Z"),
+    )
+    connection.execute("INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 1)")
+    connection.commit()
+    connection.close()
+    token = auth_client.post(
+        "/auth/login", data={"username": "ana@sema.example", "password": "clave-segura-1"}
+    ).json()["access_token"]
+
+    response = auth_client.get("/roles", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+
+
 def test_login_returns_token_and_me_returns_user(auth_client):
     response = auth_client.post(
         "/auth/login",
