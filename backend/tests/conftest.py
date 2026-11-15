@@ -5,7 +5,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from app.features.auth.authorization import admin_required
+from app.features.auth.authorization import (
+    admin_required,
+    can_create_users,
+    can_delete_users,
+    can_read_users,
+    can_update_users,
+)
 from app.features.auth.dependencies import get_current_user
 from app.features.usuarios.schemas import UsuarioOut
 from app.main import create_app
@@ -27,6 +33,8 @@ def app(tmp_path, monkeypatch) -> FastAPI:
         updated_at="2026-11-14T00:00:00Z",
     )
     application.dependency_overrides[admin_required] = lambda: None
+    for dependency in (can_create_users, can_read_users, can_update_users, can_delete_users):
+        application.dependency_overrides[dependency] = lambda: None
     return application
 
 
