@@ -11,6 +11,7 @@
 | `core/security.py`: JWT, y `features/auth/` | 📝 Diseño (fase 4, la implementa un compañero) |
 | `manage.py` y seeders | ✅ Implementado |
 | Feature `usuarios` | ✅ Implementada (todavía sin protección de token) |
+| Feature `roles` | ✅ Implementada (todavía sin protección de token) |
 | Gestión de usuarios: modelo físico | 🚧 Migraciones creadas; faltan features CRUD de roles, permisos y asignaciones |
 | `features/_template/` | ✅ Molde de feature con CRUD completo y probado (no registrado en `main.py`) |
 

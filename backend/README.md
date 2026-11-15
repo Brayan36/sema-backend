@@ -166,8 +166,15 @@ El archivo está en `backend/data/sema.db`. Se abre con **DB Browser for SQLite*
 | `GET` | `/usuarios/{id}` | Obtener usuario |
 | `PATCH` | `/usuarios/{id}` | Actualizar usuario (parcial) |
 | `DELETE` | `/usuarios/{id}` | Eliminar usuario (borrado lógico) |
+| `POST` | `/roles` | Crear rol |
+| `GET` | `/roles?limit=&offset=&order_by=&direction=&q=&created_from=&created_to=` | Listar roles activos (paginado, ordenado y filtrado) |
+| `GET` | `/roles/{id}` | Obtener rol |
+| `PATCH` | `/roles/{id}` | Actualizar rol (parcial) |
+| `DELETE` | `/roles/{id}` | Eliminar rol (borrado lógico) |
 
 **Hoy los endpoints de `/usuarios` funcionan sin token.** La protección llega con la fase de autenticación (`/auth/login`, `/auth/me` y `get_current_user`).
+
+Los endpoints de `/roles` también son temporalmente públicos mientras se implementa JWT. Un rol tiene `nombre` único entre registros activos y `descripcion` opcional; esta última se puede limpiar enviando `null` en un `PATCH`.
 
 ### Listar con paginación, orden y filtros
 

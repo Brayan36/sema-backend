@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.database import connect, run_migrations
 from app.core.error_handlers import register_error_handlers
 from app.core.log_config import configure_logging
+from app.features.roles.router import router as roles_router
 from app.features.usuarios.router import router as usuarios_router
 
 
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
 
     # Los routers de cada feature se registran aquí:
     app.include_router(usuarios_router)
+    app.include_router(roles_router)
 
     return app
 
