@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -110,6 +111,32 @@ def test_permission_controls_user_read_access(auth_client):
     response = auth_client.get("/usuarios", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
+
+
+def test_expired_token_is_rejected(auth_client):
+    token = jwt.encode(
+        {"sub": "1", "exp": 1}, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
+
+    response = auth_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+
+
+def test_bootstrap_creates_first_user(tmp_path, monkeypatch):
+    from app.core.database import connect, run_migrations
+    from app.features.auth.service import bootstrap_first_user
+
+    monkeypatch.setattr(settings, "db_path", tmp_path / "bootstrap.db")
+    monkeypatch.setattr(settings, "first_user_email", "admin@sema.example")
+    monkeypatch.setattr(settings, "first_user_password", "clave-admin-1")
+    connection = connect(settings.db_path)
+    run_migrations(connection)
+
+    assert bootstrap_first_user(connection) is True
+    assert bootstrap_first_user(connection) is False
+    assert connection.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0] == 1
+    connection.close()
 
 
 def test_login_returns_token_and_me_returns_user(auth_client):
